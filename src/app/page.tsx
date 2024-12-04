@@ -69,9 +69,16 @@ export default async function Home() {
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-start">
           <div>
-            <h1 className="text-4xl font-bold tracking-tight">NCL Practice Tracker</h1>
+            <div className="flex flex-col items-start gap-4">
+              <img 
+                src="/logo.jpg" 
+                alt="NCL Logo" 
+                className="h-16 w-auto"
+              />
+              <h1 className="text-4xl font-bold tracking-tight">NCL Practice Tracker</h1>
+            </div>
             <p className="text-lg text-muted-foreground mt-2">
               Tracking changes to GP Practices and Primary Care Networks (PCNs) 
               in North Central London using NHS Digital ODS data.
