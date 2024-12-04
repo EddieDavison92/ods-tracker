@@ -14,6 +14,14 @@ import type {
 } from '@/types/database.types'
 import { DownloadButton } from "@/components/DownloadButton"
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+export const metadata = {
+  headers: {
+    'Cache-Control': 'no-store, no-cache, must-revalidate'
+  }
+}
+
 export default async function Home() {
   const supabase = createServerSupabaseClient()
 
@@ -21,7 +29,8 @@ export default async function Home() {
   const { data: practices = [] } = await supabase
     .from('practices')
     .select('*')
-    .order('name') as { data: Practice[] }
+    .order('name')
+    .throwOnError() as { data: Practice[] }
   
   // Get last update time
   const lastUpdated = practices.length > 0 
@@ -40,7 +49,8 @@ export default async function Home() {
         history
       )
     `)
-    .order('name') as { 
+    .order('name')
+    .throwOnError() as { 
       data: (PCN & { 
         member_practices: PCNMemberPractice[] 
       })[] 

@@ -12,6 +12,10 @@ interface ODSResponse {
   Organisations: ODSListOrganisation[]
 }
 
+// Add export config to disable caching
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function POST() {
   console.log('[API] Starting ODS fetch')
 
@@ -359,13 +363,20 @@ export async function POST() {
       })
     if (pcnUpsertError) throw pcnUpsertError
 
-    return NextResponse.json({
-      success: true,
-      summary: {
-        totalPractices: practices.length,
-        totalPCNs: pcns.length,
+    return NextResponse.json(
+      {
+        success: true,
+        summary: {
+          totalPractices: practices.length,
+          totalPCNs: pcns.length,
+        }
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate'
+        }
       }
-    })
+    )
 
   } catch (error) {
     console.error('[API] Error:', error)
