@@ -7,6 +7,7 @@ import type { PostgrestError } from '@supabase/supabase-js'
 
 const BASE_URL = 'https://directory.spineservices.nhs.uk/ORD/2-0-0'
 const NCL_ICB_CODE = '93C'
+const API_VERSION = '1.0.0'
 
 interface ODSResponse {
   Organisations: ODSListOrganisation[]
@@ -23,7 +24,7 @@ export async function GET() {
 
 export async function POST() {
   const startTime = new Date()
-  console.log(`[API] Starting ODS fetch at ${startTime.toISOString()}`)
+  console.log(`[API ${API_VERSION}] Starting ODS fetch at ${startTime.toISOString()}`)
 
   try {
     // 1. First get all organizations
