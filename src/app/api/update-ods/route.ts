@@ -16,6 +16,11 @@ interface ODSResponse {
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+// Add GET handler that just calls the POST handler
+export async function GET() {
+  return POST()
+}
+
 export async function POST() {
   console.log('[API] Starting ODS fetch')
 
