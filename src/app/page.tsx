@@ -313,8 +313,8 @@ export default async function Home() {
             <div className="space-y-6">
               {recentChanges.map(change => (
                 <div key={change.id} className="flex gap-4">
-                  <div className="w-32 text-sm text-muted-foreground">
-                    {format(new Date(change.change_date), 'dd/MM/yyyy HH:mm')}
+                  <div className="w-24 text-sm text-muted-foreground">
+                    {format(new Date(change.change_date), 'dd/MM/yyyy')}
                   </div>
                   <div className="flex-1">
                     <div className="font-medium flex items-center gap-2">
