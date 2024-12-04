@@ -1,0 +1,6 @@
+{
+    "crons": [{
+      "path": "/api/update-ods",
+      "schedule": "0 1 * * *"
+    }]
+  }
