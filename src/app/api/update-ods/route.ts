@@ -22,7 +22,8 @@ export async function GET() {
 }
 
 export async function POST() {
-  console.log('[API] Starting ODS fetch')
+  const startTime = new Date()
+  console.log(`[API] Starting ODS fetch at ${startTime.toISOString()}`)
 
   try {
     // 1. First get all organizations
@@ -160,16 +161,21 @@ export async function POST() {
       }
     }
 
+    console.log(`[API] Found ${practices.length} practices and ${pcns.length} PCNs`)
+    
     // Save to Supabase
+    console.log('[API] Starting database updates...')
     const supabase = createServerSupabaseClient()
 
     // Get existing data
+    console.log('[API] Fetching existing practices...')
     const { data: existingPractices, error: existingPracticesError } = await supabase
       .from('practices')
       .select('*') as { data: Practice[] | null, error: PostgrestError | null }
     if (existingPracticesError) throw existingPracticesError
 
     // Track changes
+    console.log('[API] Comparing data for changes...')
     const changes: Omit<TrackedChange, 'id'>[] = []
     const now = new Date().toISOString()
 
@@ -264,13 +270,18 @@ export async function POST() {
 
     // Record changes if any
     if (changes.length > 0) {
+      console.log(`[API] Recording ${changes.length} changes...`)
       const { error: changesError } = await supabase
         .from('tracked_changes')
         .insert(changes)
       if (changesError) throw changesError
+      console.log('[API] Changes recorded successfully')
+    } else {
+      console.log('[API] No changes detected')
     }
 
     // Before saving to Supabase, calculate PCN member practices
+    console.log('[API] Calculating PCN memberships...')
     for (const pcn of pcns) {
       // Find all practices that have ever been members of this PCN
       const memberPractices = practices.filter(practice => 
@@ -335,6 +346,7 @@ export async function POST() {
       pcn.member_count = memberPractices.filter(p => p.join_date !== null).length
 
       // First delete existing relationships
+      console.log(`[API] Updating members for PCN ${pcn.ods_code}...`)
       const { error: deleteError } = await supabase
         .from('pcn_member_practices')
         .delete()
@@ -351,6 +363,7 @@ export async function POST() {
     }
 
     // Update practices
+    console.log('[API] Updating practices...')
     const { error: practiceUpsertError } = await supabase
       .from('practices')
       .upsert(practices, {
@@ -358,8 +371,10 @@ export async function POST() {
         ignoreDuplicates: false
       })
     if (practiceUpsertError) throw practiceUpsertError
+    console.log('[API] Practices updated successfully')
 
     // Update PCNs
+    console.log('[API] Updating PCNs...')
     const { error: pcnUpsertError } = await supabase
       .from('pcns')
       .upsert(pcns, {
@@ -367,6 +382,11 @@ export async function POST() {
         ignoreDuplicates: false
       })
     if (pcnUpsertError) throw pcnUpsertError
+    console.log('[API] PCNs updated successfully')
+
+    const endTime = new Date()
+    const duration = (endTime.getTime() - startTime.getTime()) / 1000
+    console.log(`[API] Update completed successfully in ${duration} seconds`)
 
     return NextResponse.json(
       {
@@ -374,6 +394,8 @@ export async function POST() {
         summary: {
           totalPractices: practices.length,
           totalPCNs: pcns.length,
+          changes: changes.length,
+          duration: `${duration} seconds`
         }
       },
       {
