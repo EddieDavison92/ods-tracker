@@ -7,7 +7,7 @@ const NCL_ICB_CODE = '93C'
 export async function fetchAllOrganizations() {
   console.log('[ODS] Starting organization fetch')
   const params = new URLSearchParams({
-    RelTypeId: 'RE4,RE6',
+    RelTypeId: 'RE4,RE6', // RE4 = Practice, RE6 = PCN - expand this list if we want to track other organisation types
     TargetOrgId: NCL_ICB_CODE,
     _format: 'json'
   })
