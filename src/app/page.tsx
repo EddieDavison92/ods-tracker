@@ -3,7 +3,7 @@ import UpdateButton from '@/components/UpdateButton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { format } from 'date-fns'
 import type { 
   Practice, 
@@ -112,63 +112,60 @@ export default async function Home() {
               <CardTitle>GP Practices</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[600px]">
-                <div className="rounded-md border">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[250px] text-xs">Name</TableHead>
-                          <TableHead className="w-[100px] text-xs">ODS Code</TableHead>
-                          <TableHead className="w-[80px] text-xs">Status</TableHead>
-                          <TableHead className="w-[200px] text-xs">PCN</TableHead>
-                          <TableHead className="w-[200px] text-xs">Address</TableHead>
-                          <TableHead className="w-[100px] text-xs">UPRN</TableHead>
-                          <TableHead className="w-[150px] text-xs">Contact</TableHead>
-                          <TableHead className="w-[150px] text-xs">Dates</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {practices.map(practice => (
-                          <TableRow key={practice.ods_code} className="text-xs">
-                            <TableCell className="font-medium">{practice.name}</TableCell>
-                            <TableCell>{practice.ods_code}</TableCell>
-                            <TableCell>{practice.status}</TableCell>
-                            <TableCell>
-                              {practice.current_pcn_code && (
-                                <>
-                                  {pcnNameMap.get(practice.current_pcn_code)}
-                                  <span className="text-muted-foreground">
-                                    {' '}({practice.current_pcn_code})
-                                  </span>
-                                </>
-                              )}
-                            </TableCell>
-                            <TableCell className="whitespace-nowrap">
-                              {practice.address_lines}
-                              {practice.postcode && <span className="ml-1">{practice.postcode}</span>}
-                            </TableCell>
-                            <TableCell>{practice.uprn || '-'}</TableCell>
-                            <TableCell className="whitespace-nowrap">
-                              {practice.phone && <div className="whitespace-nowrap">{practice.phone}</div>}
-                              {practice.email && <div className="whitespace-nowrap">{practice.email}</div>}
-                              {practice.website && <div className="whitespace-nowrap">{practice.website}</div>}
-                            </TableCell>
-                            <TableCell>
-                              {practice.roles?.find(r => r.id === 'RO76')?.Date?.find(d => d.Type === 'Operational')?.Start && (
-                                <div>Started: {format(
-                                  new Date(practice.roles.find(r => r.id === 'RO76')!.Date.find(d => d.Type === 'Operational')!.Start!), 
-                                  'dd/MM/yyyy'
-                                )}</div>
-                              )}
-                              <div>Updated: {format(new Date(practice.last_changed), 'dd/MM/yyyy')}</div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
+              <ScrollArea className="h-[600px] border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[250px] text-xs">Name</TableHead>
+                      <TableHead className="min-w-[100px] text-xs">ODS Code</TableHead>
+                      <TableHead className="min-w-[80px] text-xs">Status</TableHead>
+                      <TableHead className="min-w-[200px] text-xs">PCN</TableHead>
+                      <TableHead className="min-w-[200px] text-xs">Address</TableHead>
+                      <TableHead className="min-w-[100px] text-xs">UPRN</TableHead>
+                      <TableHead className="min-w-[150px] text-xs">Contact</TableHead>
+                      <TableHead className="min-w-[150px] text-xs">Dates</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {practices.map(practice => (
+                      <TableRow key={practice.ods_code} className="text-xs">
+                        <TableCell className="font-medium">{practice.name}</TableCell>
+                        <TableCell>{practice.ods_code}</TableCell>
+                        <TableCell>{practice.status}</TableCell>
+                        <TableCell>
+                          {practice.current_pcn_code && (
+                            <>
+                              {pcnNameMap.get(practice.current_pcn_code)}
+                              <span className="text-muted-foreground">
+                                {' '}({practice.current_pcn_code})
+                              </span>
+                            </>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {practice.address_lines}
+                          {practice.postcode && <span className="ml-1">{practice.postcode}</span>}
+                        </TableCell>
+                        <TableCell>{practice.uprn || '-'}</TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {practice.phone && <div className="whitespace-nowrap">{practice.phone}</div>}
+                          {practice.email && <div className="whitespace-nowrap">{practice.email}</div>}
+                          {practice.website && <div className="whitespace-nowrap">{practice.website}</div>}
+                        </TableCell>
+                        <TableCell>
+                          {practice.roles?.find(r => r.id === 'RO76')?.Date?.find(d => d.Type === 'Operational')?.Start && (
+                            <div>Started: {format(
+                              new Date(practice.roles.find(r => r.id === 'RO76')!.Date.find(d => d.Type === 'Operational')!.Start!), 
+                              'dd/MM/yyyy'
+                            )}</div>
+                          )}
+                          <div>Updated: {format(new Date(practice.last_changed), 'dd/MM/yyyy')}</div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <ScrollBar orientation="horizontal" />
               </ScrollArea>
               <DownloadButton 
                 data={practices.map(practice => ({
@@ -200,93 +197,90 @@ export default async function Home() {
               <CardTitle>Primary Care Networks</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[600px]">
-                <div className="rounded-md border">
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[200px] text-xs">Name</TableHead>
-                          <TableHead className="w-[100px] text-xs">ODS Code</TableHead>
-                          <TableHead className="w-[80px] text-xs">Status</TableHead>
-                          <TableHead className="w-[80px] text-xs">Member Count</TableHead>
-                          <TableHead className="w-[300px] text-xs">Current Members</TableHead>
-                          <TableHead className="w-[300px] text-xs">Previous Members</TableHead>
-                          <TableHead className="w-[200px] text-xs">Address</TableHead>
-                          <TableHead className="w-[100px] text-xs">UPRN</TableHead>
-                          <TableHead className="w-[150px] text-xs">Dates</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pcns.map(pcn => (
-                          <TableRow key={pcn.ods_code} className="text-xs">
-                            <TableCell className="font-medium">{pcn.name}</TableCell>
-                            <TableCell>{pcn.ods_code}</TableCell>
-                            <TableCell>{pcn.status}</TableCell>
-                            <TableCell>{pcn.member_count}</TableCell>
-                            <TableCell>
-                              {pcn.member_practices
-                                ?.filter(p => p.join_date !== null)
-                                .sort((a, b) => a.name.localeCompare(b.name))
-                                .map(practice => (
-                                  <div key={practice.ods_code} className="whitespace-nowrap">
-                                    {practice.name}
-                                    <span className="text-muted-foreground">
-                                      {' '}({practice.ods_code})
-                                    </span>
-                                    <span className="text-muted-foreground ml-1">
-                                      from {format(new Date(practice.join_date!), 'dd/MM/yyyy')}
-                                    </span>
-                                  </div>
-                                ))}
-                              {!pcn.member_practices?.some(p => p.join_date !== null) && (
-                                <span className="text-muted-foreground">No current members</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {pcn.member_practices
-                                ?.filter(p => p.history?.length > 0 && p.join_date === null)
-                                .sort((a, b) => a.name.localeCompare(b.name))
-                                .map(practice => (
-                                  <div key={practice.ods_code} className="whitespace-nowrap mb-2">
-                                    <div>
-                                      {practice.name}
-                                      <span className="text-muted-foreground">
-                                        {' '}({practice.ods_code})
-                                      </span>
+              <ScrollArea className="h-[600px] border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[200px] text-xs">Name</TableHead>
+                      <TableHead className="min-w-[100px] text-xs">ODS Code</TableHead>
+                      <TableHead className="min-w-[80px] text-xs">Status</TableHead>
+                      <TableHead className="min-w-[80px] text-xs">Member Count</TableHead>
+                      <TableHead className="min-w-[300px] text-xs">Current Members</TableHead>
+                      <TableHead className="min-w-[300px] text-xs">Previous Members</TableHead>
+                      <TableHead className="min-w-[200px] text-xs">Address</TableHead>
+                      <TableHead className="min-w-[100px] text-xs">UPRN</TableHead>
+                      <TableHead className="min-w-[150px] text-xs">Dates</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pcns.map(pcn => (
+                      <TableRow key={pcn.ods_code} className="text-xs">
+                        <TableCell className="font-medium">{pcn.name}</TableCell>
+                        <TableCell>{pcn.ods_code}</TableCell>
+                        <TableCell>{pcn.status}</TableCell>
+                        <TableCell>{pcn.member_count}</TableCell>
+                        <TableCell>
+                          {pcn.member_practices
+                            ?.filter(p => p.join_date !== null)
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(practice => (
+                              <div key={practice.ods_code} className="whitespace-nowrap">
+                                {practice.name}
+                                <span className="text-muted-foreground">
+                                  {' '}({practice.ods_code})
+                                </span>
+                                <span className="text-muted-foreground ml-1">
+                                  from {format(new Date(practice.join_date!), 'dd/MM/yyyy')}
+                                </span>
+                              </div>
+                            ))}
+                          {!pcn.member_practices?.some(p => p.join_date !== null) && (
+                            <span className="text-muted-foreground">No current members</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {pcn.member_practices
+                            ?.filter(p => p.history?.length > 0 && p.join_date === null)
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(practice => (
+                              <div key={practice.ods_code} className="whitespace-nowrap mb-2">
+                                <div>
+                                  {practice.name}
+                                  <span className="text-muted-foreground">
+                                    {' '}({practice.ods_code})
+                                  </span>
+                                </div>
+                                <div className="text-muted-foreground ml-4 text-xs">
+                                  {practice.history.map((period: PCNMemberHistory, i: number) => (
+                                    <div key={i}>
+                                      Member from {period.start && format(new Date(period.start), 'dd/MM/yyyy')}
+                                      {' until '} 
+                                      {period.end && format(new Date(period.end), 'dd/MM/yyyy')}
                                     </div>
-                                    <div className="text-muted-foreground ml-4 text-xs">
-                                      {practice.history.map((period: PCNMemberHistory, i: number) => (
-                                        <div key={i}>
-                                          Member from {period.start && format(new Date(period.start), 'dd/MM/yyyy')}
-                                          {' until '} 
-                                          {period.end && format(new Date(period.end), 'dd/MM/yyyy')}
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              {!pcn.member_practices?.some(p => p.history?.length > 0 && p.join_date === null) && (
-                                <span className="text-muted-foreground">No previous members</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="whitespace-nowrap">
-                              {pcn.address_lines}
-                              {pcn.postcode && <span className="ml-1">{pcn.postcode}</span>}
-                            </TableCell>
-                            <TableCell>{pcn.uprn || '-'}</TableCell>
-                            <TableCell>
-                              {pcn.operational_start && 
-                                <div>Started: {format(new Date(pcn.operational_start), 'dd/MM/yyyy')}</div>
-                              }
-                              <div>Updated: {format(new Date(pcn.last_changed), 'dd/MM/yyyy')}</div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          {!pcn.member_practices?.some(p => p.history?.length > 0 && p.join_date === null) && (
+                            <span className="text-muted-foreground">No previous members</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          {pcn.address_lines}
+                          {pcn.postcode && <span className="ml-1">{pcn.postcode}</span>}
+                        </TableCell>
+                        <TableCell>{pcn.uprn || '-'}</TableCell>
+                        <TableCell>
+                          {pcn.operational_start && 
+                            <div>Started: {format(new Date(pcn.operational_start), 'dd/MM/yyyy')}</div>
+                          }
+                          <div>Updated: {format(new Date(pcn.last_changed), 'dd/MM/yyyy')}</div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <ScrollBar orientation="horizontal" />
               </ScrollArea>
               <DownloadButton 
                 data={pcns.map(pcn => ({
