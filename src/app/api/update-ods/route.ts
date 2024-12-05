@@ -1,5 +1,6 @@
 // src/app/api/update-ods/route.ts
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { fetchAllOrganizations, fetchOrganizationDetails } from '@/lib/ods/fetch'
 import { transformToPractice, transformToPCN, calculatePCNMemberships } from '@/lib/ods/transform'
 import { saveToDatabase } from '@/lib/ods/database'
@@ -37,6 +38,9 @@ export async function POST() {
 
     // 5. Save to database
     const { changes } = await saveToDatabase(practices, pcns)
+
+    // 6. Revalidate the home page
+    revalidatePath('/')
 
     return NextResponse.json({
       success: true,

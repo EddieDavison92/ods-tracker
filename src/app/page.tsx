@@ -6,8 +6,12 @@ import { PracticesTable } from '@/components/PracticesTable'
 import { PCNsTable } from '@/components/PCNsTable'
 import { RecentChanges } from '@/components/RecentChanges'
 import type { Practice, PCN, TrackedChange } from '@/types/database.types'
+import { unstable_noStore as noStore } from 'next/cache'
 
 export default async function Home() {
+  // Opt out of caching for the entire page
+  noStore()
+
   const supabase = createServerSupabaseClient()
 
   // Get practices with PCN details
