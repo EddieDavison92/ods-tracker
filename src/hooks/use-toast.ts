@@ -1,4 +1,5 @@
 // src/hooks/use-toast.ts
+// copied from shadcn/ui toast documentation
 'use client'
 
 import * as React from "react"
