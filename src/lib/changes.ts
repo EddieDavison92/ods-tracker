@@ -1,3 +1,4 @@
+// src/lib/changes.ts
 import type { Practice, TrackedChange, ChangeValue } from '@/types/database.types'
 
 export function detectChanges(oldPractices: Practice[], newPractices: Practice[]): Omit<TrackedChange, 'id'>[] {

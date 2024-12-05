@@ -1,3 +1,4 @@
+// src/components/UpdateProgress.tsx
 'use client'
 
 import { useState, useEffect } from 'react'

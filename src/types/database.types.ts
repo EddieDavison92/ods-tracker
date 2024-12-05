@@ -1,3 +1,4 @@
+// src/types/database.types.ts
 export interface Practice {
   ods_code: string
   name: string
@@ -105,6 +106,7 @@ export interface PCN {
   last_changed: string
   created_at: string
   updated_at: string
+  member_practices?: PCNMemberPractice[]
 }
 
 export type ChangeValue = {

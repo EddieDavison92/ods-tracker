@@ -1,3 +1,4 @@
+// src/types/ods.types.ts
 export interface ODSOrganisation {
   Organisation: {
     Name: string
