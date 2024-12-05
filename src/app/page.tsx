@@ -69,10 +69,10 @@ export default async function Home() {
   const pcnNameMap = new Map(pcns.map(pcn => [pcn.ods_code, pcn.name]))
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto px-4 py-6 sm:p-6">
       <div className="mb-8">
-        <div className="flex justify-between items-start">
-          <div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
+          <div className="space-y-4">
             <div className="flex flex-col items-start gap-4">
               <Image 
                 src="/logo.jpg" 
@@ -84,17 +84,19 @@ export default async function Home() {
               />
               <h1 className="text-4xl font-bold tracking-tight">NCL Practice Tracker</h1>
             </div>
-            <p className="text-lg text-muted-foreground mt-2">
+            <p className="text-lg text-muted-foreground">
               Tracking changes to GP Practices and Primary Care Networks (PCNs) 
               in North Central London using NHS Digital ODS data.
             </p>
             {lastUpdated && (
-              <p className="text-sm text-muted-foreground mt-2">
+              <p className="text-sm text-muted-foreground">
                 Last updated: {format(new Date(lastUpdated), 'dd/MM/yyyy HH:mm')}
               </p>
             )}
           </div>
-          <UpdateButton />
+          <div className="mt-4 sm:mt-0">
+            <UpdateButton />
+          </div>
         </div>
       </div>
 
@@ -110,60 +112,62 @@ export default async function Home() {
               <CardTitle>GP Practices</CardTitle>
             </CardHeader>
             <CardContent>
-              <ScrollArea className="h-[600px] rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[250px] text-xs">Name</TableHead>
-                      <TableHead className="w-[100px] text-xs">ODS Code</TableHead>
-                      <TableHead className="w-[80px] text-xs">Status</TableHead>
-                      <TableHead className="w-[200px] text-xs">PCN</TableHead>
-                      <TableHead className="w-[200px] text-xs">Address</TableHead>
-                      <TableHead className="w-[100px] text-xs">UPRN</TableHead>
-                      <TableHead className="w-[150px] text-xs">Contact</TableHead>
-                      <TableHead className="w-[150px] text-xs">Dates</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {practices.map(practice => (
-                      <TableRow key={practice.ods_code} className="text-xs">
-                        <TableCell className="font-medium">{practice.name}</TableCell>
-                        <TableCell>{practice.ods_code}</TableCell>
-                        <TableCell>{practice.status}</TableCell>
-                        <TableCell>
-                          {practice.current_pcn_code && (
-                            <>
-                              {pcnNameMap.get(practice.current_pcn_code)}
-                              <span className="text-muted-foreground">
-                                {' '}({practice.current_pcn_code})
-                              </span>
-                            </>
-                          )}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {practice.address_lines}
-                          {practice.postcode && <span className="ml-1">{practice.postcode}</span>}
-                        </TableCell>
-                        <TableCell>{practice.uprn || '-'}</TableCell>
-                        <TableCell className="whitespace-nowrap">
-                          {practice.phone && <div className="whitespace-nowrap">{practice.phone}</div>}
-                          {practice.email && <div className="whitespace-nowrap">{practice.email}</div>}
-                          {practice.website && <div className="whitespace-nowrap">{practice.website}</div>}
-                        </TableCell>
-                        <TableCell>
-                          {practice.roles?.find(r => r.id === 'RO76')?.Date?.find(d => d.Type === 'Operational')?.Start && (
-                            <div>Started: {format(
-                              new Date(practice.roles.find(r => r.id === 'RO76')!.Date.find(d => d.Type === 'Operational')!.Start!), 
-                              'dd/MM/yyyy'
-                            )}</div>
-                          )}
-                          <div>Updated: {format(new Date(practice.last_changed), 'dd/MM/yyyy')}</div>
-                        </TableCell>
+              <div className="rounded-md border">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[250px] text-xs">Name</TableHead>
+                        <TableHead className="w-[100px] text-xs">ODS Code</TableHead>
+                        <TableHead className="w-[80px] text-xs">Status</TableHead>
+                        <TableHead className="w-[200px] text-xs">PCN</TableHead>
+                        <TableHead className="w-[200px] text-xs">Address</TableHead>
+                        <TableHead className="w-[100px] text-xs">UPRN</TableHead>
+                        <TableHead className="w-[150px] text-xs">Contact</TableHead>
+                        <TableHead className="w-[150px] text-xs">Dates</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
+                    </TableHeader>
+                    <TableBody>
+                      {practices.map(practice => (
+                        <TableRow key={practice.ods_code} className="text-xs">
+                          <TableCell className="font-medium">{practice.name}</TableCell>
+                          <TableCell>{practice.ods_code}</TableCell>
+                          <TableCell>{practice.status}</TableCell>
+                          <TableCell>
+                            {practice.current_pcn_code && (
+                              <>
+                                {pcnNameMap.get(practice.current_pcn_code)}
+                                <span className="text-muted-foreground">
+                                  {' '}({practice.current_pcn_code})
+                                </span>
+                              </>
+                            )}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {practice.address_lines}
+                            {practice.postcode && <span className="ml-1">{practice.postcode}</span>}
+                          </TableCell>
+                          <TableCell>{practice.uprn || '-'}</TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {practice.phone && <div className="whitespace-nowrap">{practice.phone}</div>}
+                            {practice.email && <div className="whitespace-nowrap">{practice.email}</div>}
+                            {practice.website && <div className="whitespace-nowrap">{practice.website}</div>}
+                          </TableCell>
+                          <TableCell>
+                            {practice.roles?.find(r => r.id === 'RO76')?.Date?.find(d => d.Type === 'Operational')?.Start && (
+                              <div>Started: {format(
+                                new Date(practice.roles.find(r => r.id === 'RO76')!.Date.find(d => d.Type === 'Operational')!.Start!), 
+                                'dd/MM/yyyy'
+                              )}</div>
+                            )}
+                            <div>Updated: {format(new Date(practice.last_changed), 'dd/MM/yyyy')}</div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
               <DownloadButton 
                 data={practices.map(practice => ({
                   ...practice,
