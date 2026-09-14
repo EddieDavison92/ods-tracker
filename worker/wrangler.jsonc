@@ -12,7 +12,7 @@
   "vars": {
     "ORD_BASE": "https://directory.spineservices.nhs.uk/ORD/2-0-0",
     // UI base URL, used for links in the RSS feed.
-    "APP_URL": "https://ods-tracker.vercel.app"
+    "APP_URL": "https://ods-tracker-omega.vercel.app"
   },
   "d1_databases": [
     {

@@ -49,3 +49,5 @@ worker/worker-configuration.d.ts
 # ODS release downloads and generated backfill SQL
 .cache/
 worker/.backfill*/
+
+.vercel
