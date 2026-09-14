@@ -84,11 +84,11 @@ export async function listChangedSince(base: string, since: string): Promise<str
   return (body.Organisations ?? []).map((o) => o.OrgLink.split('/').pop()!).filter(Boolean)
 }
 
-// Returns null when ORD has no record for the code.
+// Returns null when ORD has no record for the code (404, or 410 for withdrawn records).
 export async function fetchOrg(base: string, code: string): Promise<OrgRecord | null> {
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(`${base}/organisations/${encodeURIComponent(code)}?_format=json`, { headers: HEADERS })
-    if (res.status === 404) return null
+    if (res.status === 404 || res.status === 410) return null
     if (res.ok) {
       const body = (await res.json()) as { Organisation?: OrdOrganisation }
       return body.Organisation ? fromOrd(body.Organisation) : null

@@ -22,10 +22,25 @@ function d1<T>(sql: string): T[] {
   return JSON.parse(out.toString())[0].results as T[]
 }
 
-// Minimal CSV parser for quoted epraccur rows.
+// Minimal CSV parser for epraccur rows (quoted fields, no embedded newlines).
 function parseCsv(text: string): string[][] {
-  return text.trim().split(/\r?\n/).map((line) => [...line.matchAll(/"((?:[^"]|"")*)"|([^,]*)(?:,|$)/g)]
-    .map((m) => (m[1] ?? m[2] ?? '').replace(/""/g, '"')))
+  return text.trim().split(/\r?\n/).map((line) => {
+    const out: string[] = []
+    let field = ''
+    let quoted = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (quoted) {
+        if (ch === '"' && line[i + 1] === '"') { field += '"'; i++ }
+        else if (ch === '"') quoted = false
+        else field += ch
+      } else if (ch === '"') quoted = true
+      else if (ch === ',') { out.push(field); field = '' }
+      else field += ch
+    }
+    out.push(field)
+    return out
+  })
 }
 
 const isoDate = (d: string) => (d ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : null)
