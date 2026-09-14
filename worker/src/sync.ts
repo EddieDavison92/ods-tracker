@@ -60,15 +60,11 @@ export async function runSync(env: Env, opts: SyncOptions): Promise<SyncResult> 
       result.since = isoDate(sinceMs)
       const codes = await listChangedSince(env.ORD_BASE, result.since)
       result.listed = codes.length
-      const stmts = []
-      for (let i = 0; i < codes.length; i += 90) {
-        const chunk = codes.slice(i, i + 90)
-        stmts.push(
-          db.prepare(`INSERT OR IGNORE INTO sync_queue (code, queued_at) VALUES ${chunk.map(() => '(?, ?)').join(', ')}`)
-            .bind(...chunk.flatMap((c) => [c, now])),
-        )
-      }
-      if (stmts.length) await db.batch(stmts)
+      // json_each keeps this to 2 bound parameters (D1 allows 100 per statement).
+      await db
+        .prepare('INSERT OR IGNORE INTO sync_queue (code, queued_at) SELECT value, ? FROM json_each(?)')
+        .bind(now, JSON.stringify(codes))
+        .run()
       await setMeta(db, 'pending_sync_date', today).run()
     }
 
