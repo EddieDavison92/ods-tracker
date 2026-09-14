@@ -1,4 +1,7 @@
 // Response shapes of the public read API. Imported by the Next.js UI.
+import type { GroupKey } from '../ods/groups.ts'
+
+export type { GroupKey } from '../ods/groups.ts'
 
 export interface OrgRef {
   code: string
@@ -12,6 +15,7 @@ export interface RoleRef {
 
 export interface Stats {
   orgs: number
+  active_orgs: number
   practices: number
   active_practices: number
   pcns: number
@@ -19,6 +23,13 @@ export interface Stats {
   active_sicbls: number
   active_icbs: number
   events: number
+  events_30d: number
+}
+
+export interface GroupCount {
+  group: GroupKey
+  active: number
+  total: number
 }
 
 export interface SyncRunInfo {
@@ -45,7 +56,15 @@ export interface Meta {
   snapshotDate: string | null
   historyFrom: string | null
   stats: Stats | null
+  groups: GroupCount[]
   runs: SyncRunInfo[]
+}
+
+export interface AreaCounts {
+  // Active organisations in the area, all types.
+  active: number
+  gp: number
+  pcn: number
 }
 
 export interface ScopeOption {
@@ -54,6 +73,7 @@ export interface ScopeOption {
   type: 'region' | 'icb' | 'sicbl'
   parent: string | null
   active: boolean
+  counts: AreaCounts | null
 }
 
 export interface Scopes {
@@ -89,19 +109,47 @@ export interface PcnRow extends Omit<Hierarchy, 'pcn'> {
   memberCount: number
 }
 
-export interface OrgSearchRow {
+// Row in the universal browse/search list.
+export interface OrgListRow extends Hierarchy {
   code: string
   name: string
   status: string
+  group: GroupKey
+  primaryRole: RoleRef | null
   postcode: string | null
   town: string | null
-  primaryRole: RoleRef | null
+  opStart: string | null
+  opEnd: string | null
+  // The org this one is operated by (e.g. a trust site's trust).
+  parent: OrgRef | null
+}
+
+export interface Suggestion {
+  code: string
+  name: string
+  status: string
+  group: GroupKey
+  postcode: string | null
+  town: string | null
+}
+
+export interface Facets {
+  total: number
+  groups: { group: GroupKey; count: number }[]
 }
 
 export interface ListResponse<T> {
   total: number
   items: T[]
   asAt: string | null
+}
+
+export interface ActivityPoint {
+  // YYYY-MM
+  month: string
+  opened: number
+  closed: number
+  changed: number
 }
 
 export interface DateRange {
@@ -118,14 +166,27 @@ export interface OrgRoleInfo extends DateRange {
   status: string | null
 }
 
+// A relationship from this org to a parent.
 export interface OrgRelInfo extends DateRange {
   id: number
   type: RoleRef
-  // For parents: the target org. For children: the source org.
   org: OrgRef
   orgStatus: string | null
   orgPrimaryRole: RoleRef | null
+  orgGroup: GroupKey | null
   status: string | null
+}
+
+// An org with a relationship to this one (member, site, commissioned org), one row per org.
+export interface ChildRow {
+  code: string
+  name: string
+  status: string
+  group: GroupKey
+  relTypes: RoleRef[]
+  // Earliest start and latest end across its relationships to this org; end null while current.
+  start: string | null
+  end: string | null
 }
 
 export interface OrgSuccInfo {
@@ -141,6 +202,7 @@ export interface OrgDetail {
     name: string
     status: string
     recordClass: string | null
+    group: GroupKey
     primaryRole: RoleRef | null
     address: string[]
     town: string | null
@@ -154,12 +216,21 @@ export interface OrgDetail {
     updatedAt: string
   }
   hierarchy: Hierarchy
+  parent: OrgRef | null
   roles: OrgRoleInfo[]
   parents: OrgRelInfo[]
-  children: OrgRelInfo[]
+  // Current children first, up to 50; use /api/orgs/{code}/children for more.
+  children: ChildRow[]
   childrenTotal: number
+  childrenCurrent: number
+  childGroups: GroupCount[]
+  // Orgs within this area (for PCNs, Sub-ICBs, ICBs and regions), by group.
+  area: GroupCount[] | null
   successions: OrgSuccInfo[]
+  // Changes to this org.
   events: ChangeItem[]
+  // Changes to other orgs that reference this one (e.g. practices joining a PCN).
+  relatedEvents: ChangeItem[]
 }
 
 export type ChangeKind =
@@ -172,6 +243,7 @@ export type ChangeKind =
 export interface ChangeItem {
   id: number
   org: OrgRef
+  group: GroupKey | null
   primaryRole: RoleRef | null
   kind: ChangeKind
   field: string | null

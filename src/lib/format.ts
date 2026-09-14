@@ -8,6 +8,12 @@ export function formatDate(iso: string | null | undefined): string {
   return format(date, 'd MMM yyyy', { locale: enGB })
 }
 
+// YYYY-MM -> "August 2026"
+export function formatMonth(month: string): string {
+  const date = parseISO(`${month}-01`)
+  return Number.isNaN(date.getTime()) ? month : format(date, 'MMMM yyyy', { locale: enGB })
+}
+
 export function formatRange(start: string | null | undefined, end: string | null | undefined): string {
   if (!start && !end) return '—'
   return `${formatDate(start)} – ${end ? formatDate(end) : 'current'}`

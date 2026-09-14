@@ -1,37 +1,26 @@
 import Link from 'next/link'
-import { scopedHref } from '@/lib/href'
+import { cn } from '@/lib/utils'
+import { displayName } from '@/lib/names'
 import type { OrgRef } from '../../worker/src/api/types'
+
+export function orgHref(code: string) {
+  return `/org/${encodeURIComponent(code)}`
+}
 
 export function OrgLink({
   org,
-  scope,
+  showCode = true,
   className,
 }: {
   org: OrgRef | null | undefined
-  scope?: string
+  showCode?: boolean
   className?: string
 }) {
   if (!org?.code) return <span className="text-muted-foreground">—</span>
-  const label = org.name ? `${org.name} (${org.code})` : org.code
   return (
-    <Link href={scopedHref(`/org/${org.code}`, scope)} className={className ?? 'text-primary hover:underline'}>
-      {label}
-    </Link>
-  )
-}
-
-export function CodeLink({
-  code,
-  name,
-  scope,
-}: {
-  code: string
-  name?: string | null
-  scope?: string
-}) {
-  return (
-    <Link href={scopedHref(`/org/${code}`, scope)} className="text-primary hover:underline">
-      {name || code}
+    <Link href={orgHref(org.code)} className={cn('group/link text-foreground hover:text-primary', className)}>
+      <span className="underline-offset-2 group-hover/link:underline">{org.name ? displayName(org.name) : org.code}</span>
+      {showCode && org.name ? <span className="ml-1 font-mono text-[0.8em] text-muted-foreground">{org.code}</span> : null}
     </Link>
   )
 }

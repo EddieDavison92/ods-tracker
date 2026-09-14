@@ -2,9 +2,10 @@
 import type { OrgRecord } from '../ods/model.ts'
 import type { OrgDiff } from '../ods/diff.ts'
 import {
-  EVENT_COLS, ORG_COLS, REFRESH_SCOPE_SQL, REL_COLS, ROLE_COLS, STATS_SQL, SUCC_COLS,
+  EVENT_COLS, ORG_COLS, REL_COLS, ROLE_COLS, SUCC_COLS,
   eventRow, insertSql, orgFromRows, orgRow, relRow, roleRow, succRow, type Value,
 } from './rows.ts'
+import { AREA_COUNTS_SQL, GROUP_COUNTS_SQL, REFRESH_SCOPE_SQL, REINDEX_SEARCH_SQL, STATS_SQL } from './derived.ts'
 
 type Row = Record<string, Value>
 
@@ -32,7 +33,7 @@ export async function loadOrg(db: D1Database, code: string): Promise<OrgRecord |
   return o ? orgFromRows(o, roles.results, rels.results, succs.results) : null
 }
 
-// Statements applying one org's diff: upsert/delete changed rows and append events.
+// Statements applying one org's diff: upsert/delete changed rows, refresh its search entry, append events.
 export function orgWrites(
   db: D1Database, code: string, next: OrgRecord | null, diff: OrgDiff, detectedAt: string, source: string, now: string,
 ): D1PreparedStatement[] {
@@ -51,6 +52,17 @@ export function orgWrites(
   for (const e of diff.events) {
     stmts.push(db.prepare(insertSql('change_event', EVENT_COLS, 'INSERT')).bind(...eventRow(e, detectedAt, source)))
   }
+  // FTS rows are found via MATCH (indexed) rather than a column scan.
+  stmts.push(
+    db.prepare('DELETE FROM org_search WHERE rowid IN (SELECT rowid FROM org_search WHERE org_search MATCH ?)')
+      .bind(`code:"${code.replace(/"/g, '')}"`),
+  )
+  if (next) {
+    stmts.push(
+      db.prepare('INSERT INTO org_search (code, name, town, postcode) VALUES (?, ?, ?, ?)')
+        .bind(next.code, next.name, next.town, next.postcode),
+    )
+  }
   return stmts
 }
 
@@ -63,7 +75,20 @@ export const setMeta = (db: D1Database, key: string, value: string) =>
   db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').bind(key, value)
 
 export async function refreshDerived(db: D1Database) {
-  await db.batch(REFRESH_SCOPE_SQL.map((sql) => db.prepare(sql)))
-  const stats = await db.prepare(STATS_SQL).first()
-  await setMeta(db, 'stats', JSON.stringify(stats)).run()
+  for (const sql of REFRESH_SCOPE_SQL) await db.prepare(sql).run()
+  const [stats, groups, areas] = await Promise.all([
+    db.prepare(STATS_SQL).first(),
+    db.prepare(GROUP_COUNTS_SQL).all(),
+    db.prepare(AREA_COUNTS_SQL).all(),
+  ])
+  await db.batch([
+    setMeta(db, 'stats', JSON.stringify(stats)),
+    setMeta(db, 'group_counts', JSON.stringify(groups.results)),
+    setMeta(db, 'area_counts', JSON.stringify(areas.results)),
+  ])
+}
+
+// Full rebuild of the search index, after a bulk import.
+export async function reindexSearch(db: D1Database) {
+  for (const sql of REINDEX_SEARCH_SQL) await db.prepare(sql).run()
 }

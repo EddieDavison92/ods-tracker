@@ -26,7 +26,11 @@ hash and diff the same way.
   `effective_date` is the date ODS gives for it, where known.
 - Relationship and role rows keep ODS start/end dates, so membership history (e.g. a practice's PCNs
   over time) comes from the data itself, not only from detected events.
-- `org_scope` holds each org's current or last known PCN → Sub-ICB → ICB → region.
+- `org_scope` holds each org's browse type, parent (the org it is operated by) and current or last known
+  PCN → Sub-ICB → ICB → region. Sites inherit their operator's area.
+- Types (GP practices, pharmacies, trust sites, social care and 14 more) are defined once in
+  [`worker/src/ods/groups.ts`](worker/src/ods/groups.ts) from ODS primary roles and used by the API and UI.
+- `org_search` is an FTS5 index over code, name, town and postcode for the universal search.
 
 ## Worker
 
@@ -52,6 +56,7 @@ cd worker
 npm run backfill                               # downloads all releases to ../.cache/trud, writes .backfill/*.sql (~40 min)
 npm run db:migrate:remote
 npm run import -- --remote                     # loads .backfill in order
+curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" $API/admin/reindex    # rebuilds the search index
 curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" $API/admin/refresh
 curl -X POST -H "Authorization: Bearer $ADMIN_TOKEN" "$API/admin/sync?max=3000"   # repeat until remaining = 0
 npm run spot-check
@@ -66,14 +71,19 @@ Base URL: `https://ods-tracker-api.eddiefox-davison.workers.dev`. Response types
 
 | Endpoint | Notes |
 |---|---|
-| `GET /api/meta` | Data freshness, headline counts, recent sync runs |
-| `GET /api/scopes` | Regions, ICBs, Sub-ICB locations for filtering |
+| `GET /api/meta` | Data freshness, headline counts, counts by type, recent sync runs |
+| `GET /api/scopes` | Regions, ICBs, Sub-ICB locations with active counts |
+| `GET /api/orgs?q=&group=&role=&scope=&parent=&status=&sort=` | Universal browse and search across every type |
+| `GET /api/facets?q=&scope=&status=` | Counts by type for the same filters |
+| `GET /api/suggest?q=` | Top 8 matches for search-as-you-type |
+| `GET /api/orgs/{code}` | Org detail: hierarchy, relationships, members by type, area counts, change timeline |
+| `GET /api/orgs/{code}/children?group=&status=` | Paginated members, sites or commissioned orgs |
 | `GET /api/practices?scope=&status=&q=&asAt=` | GP practices with hierarchy; `asAt` gives practices and hierarchy on a past date |
 | `GET /api/pcns?scope=&status=&q=` | PCNs with active member counts |
-| `GET /api/orgs?q=&role=` | Search all ODS orgs |
-| `GET /api/orgs/{code}` | Org detail: relationships, members, successions, change timeline |
-| `GET /api/changes?scope=&type=&kinds=&since=&before=` | Change feed (cursor pagination via `before`) |
-| `GET /api/changes.rss` | Same filters, as RSS |
+| `GET /api/changes?scope=&group=&kinds=&since=&before=` | Change feed (cursor pagination via `before`) |
+| `GET /api/changes/activity?scope=&group=&kinds=&months=` | Monthly openings, closures and other changes |
+| `GET /api/changes.rss` | Same filters as `/api/changes`, as RSS |
+| `GET /api/export/orgs.csv` | Directory CSV, same filters as `/api/orgs` |
 | `GET /api/export/practices.csv?scope=&asAt=` | Practice → PCN → Sub-ICB → ICB → region mapping |
 
 ## Known gaps
@@ -82,6 +92,8 @@ Base URL: `https://ods-tracker-api.eddiefox-davison.workers.dev`. Response types
   `asAt` queries scoped to an ICB also match practices currently in that ICB.
 - Orgs commissioned by national NHS England hubs (e.g. 13Q, armed forces and health and justice
   practices) have no ICB link in ODS, so their ICB and region are blank. epraccur fills these from geography.
+- Pharmacies, dental practices and opticians link straight to an ICB in ODS, so they appear under an ICB
+  or region filter but not under a Sub-ICB location.
 - Open/close dates are operational dates; epraccur shows legal dates where they differ.
 - History before the sync started is at monthly (TRUD release) granularity.
 - Archived orgs (long closed) are loaded from TRUD but not served by the ORD API, so they never sync.

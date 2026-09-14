@@ -1,8 +1,9 @@
 // ODS tracker API: public read endpoints over D1, plus scheduled ORD sync.
 import { runSync } from './sync.ts'
-import { refreshDerived } from './db/store.ts'
+import { refreshDerived, reindexSearch } from './db/store.ts'
 import {
-  HttpError, changes, changesRss, meta, orgDetail, pcns, practiceRows, practicesCsv, scopes, searchOrgs,
+  HttpError, activity, changes, changesRss, children, facets, meta, orgDetail, orgs, orgsCsv, pcns, practiceRows,
+  practicesCsv, scopes, suggest,
 } from './api/routes.ts'
 
 // Cron runs have a 15 min wall clock; leave headroom.
@@ -10,14 +11,23 @@ const CRON_BUDGET_MS = 12 * 60_000
 const CRON_MAX_ORGS = 6000
 
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS' }
-const CACHE = { 'Cache-Control': 'public, max-age=300' }
+const cache = (seconds: number) => ({ 'Cache-Control': `public, max-age=${seconds}` })
 
-const json = (body: unknown, status = 200, headers: Record<string, string> = {}) =>
-  Response.json(body, { status, headers: { ...CORS, ...headers } })
+const json = (body: unknown, seconds = 300) =>
+  Response.json(body, { headers: { ...CORS, ...cache(seconds) } })
 
 function authorised(req: Request, env: Env): boolean {
   const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '')
   return !!env.ADMIN_TOKEN && token === env.ADMIN_TOKEN
+}
+
+function csv(body: string, filename: string) {
+  return new Response(body, {
+    headers: {
+      ...CORS, ...cache(300), 'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${filename}"`,
+    },
+  })
 }
 
 async function route(req: Request, env: Env): Promise<Response> {
@@ -37,11 +47,15 @@ async function route(req: Request, env: Env): Promise<Response> {
         budgetMs: 10 * 60_000,
         list: url.searchParams.get('list') !== '0',
       })
-      return json(result)
+      return json(result, 0)
     }
     if (path === '/admin/refresh') {
       await refreshDerived(db)
-      return json(await meta(db))
+      return json(await meta(db), 0)
+    }
+    if (path === '/admin/reindex') {
+      await reindexSearch(db)
+      return json({ ok: true }, 0)
     }
     throw new HttpError(404, 'not found')
   }
@@ -53,40 +67,49 @@ async function route(req: Request, env: Env): Promise<Response> {
       return json({
         name: 'ODS tracker API',
         endpoints: [
-          '/api/meta', '/api/scopes', '/api/practices', '/api/pcns', '/api/orgs?q=', '/api/orgs/{code}',
-          '/api/changes', '/api/changes.rss', '/api/export/practices.csv',
+          '/api/meta', '/api/scopes', '/api/orgs?q=&group=&scope=&status=', '/api/facets', '/api/suggest?q=',
+          '/api/orgs/{code}', '/api/orgs/{code}/children', '/api/practices', '/api/pcns', '/api/changes',
+          '/api/changes/activity', '/api/changes.rss', '/api/export/orgs.csv', '/api/export/practices.csv',
         ],
       })
     case '/api/meta':
-      return json(await meta(db), 200, { 'Cache-Control': 'public, max-age=60' })
+      return json(await meta(db), 60)
     case '/api/scopes':
-      return json(await scopes(db), 200, CACHE)
-    case '/api/practices':
-      return json(await practiceRows(db, url), 200, CACHE)
-    case '/api/pcns':
-      return json(await pcns(db, url), 200, CACHE)
+      return json(await scopes(db), 3600)
     case '/api/orgs':
-      return json(await searchOrgs(db, url), 200, CACHE)
+      return json(await orgs(db, url))
+    case '/api/facets':
+      return json(await facets(db, url))
+    case '/api/suggest':
+      return json(await suggest(db, url))
+    case '/api/practices':
+      return json(await practiceRows(db, url))
+    case '/api/pcns':
+      return json(await pcns(db, url))
     case '/api/changes':
-      return json(await changes(db, url), 200, CACHE)
+      return json(await changes(db, url))
+    case '/api/changes/activity':
+      return json(await activity(db, url), 3600)
     case '/api/changes.rss':
       return new Response(await changesRss(db, url, env.APP_URL), {
-        headers: { ...CORS, ...CACHE, 'Content-Type': 'application/rss+xml; charset=utf-8' },
+        headers: { ...CORS, ...cache(300), 'Content-Type': 'application/rss+xml; charset=utf-8' },
       })
-    case '/api/export/practices.csv': {
-      const asAt = url.searchParams.get('asAt') ?? 'current'
-      const scope = url.searchParams.get('scope') ?? 'england'
-      return new Response(await practicesCsv(db, url), {
-        headers: {
-          ...CORS, ...CACHE, 'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition': `attachment; filename="practices-${scope}-${asAt}.csv"`,
-        },
-      })
-    }
+    case '/api/export/practices.csv':
+      return csv(
+        await practicesCsv(db, url),
+        `practices-${url.searchParams.get('scope') ?? 'england'}-${url.searchParams.get('asAt') ?? 'current'}.csv`,
+      )
+    case '/api/export/orgs.csv':
+      return csv(
+        await orgsCsv(db, url),
+        `ods-${url.searchParams.get('group') || 'all'}-${url.searchParams.get('scope') ?? 'england'}.csv`,
+      )
   }
 
+  const kids = path.match(/^\/api\/orgs\/([A-Za-z0-9]+)\/children$/)
+  if (kids) return json(await children(db, kids[1].toUpperCase(), url))
   const org = path.match(/^\/api\/orgs\/([A-Za-z0-9]+)$/)
-  if (org) return json(await orgDetail(db, org[1].toUpperCase()), 200, CACHE)
+  if (org) return json(await orgDetail(db, org[1].toUpperCase()))
 
   throw new HttpError(404, 'not found')
 }
@@ -96,9 +119,11 @@ export default {
     try {
       return await route(req, env)
     } catch (err) {
-      if (err instanceof HttpError) return json({ error: err.message }, err.status)
+      if (err instanceof HttpError) {
+        return Response.json({ error: err.message }, { status: err.status, headers: CORS })
+      }
       console.error(err)
-      return json({ error: 'internal error' }, 500)
+      return Response.json({ error: 'internal error' }, { status: 500, headers: CORS })
     }
   },
 

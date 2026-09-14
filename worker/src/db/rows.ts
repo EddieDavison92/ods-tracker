@@ -59,24 +59,3 @@ export function orgFromRows(o: Row, roles: Row[], rels: Row[], succs: Row[]): Or
 
 export const insertSql = (table: string, cols: readonly string[], verb = 'INSERT OR REPLACE') =>
   `${verb} INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`
-
-// Keeps org_scope in step with scope_calc, writing only rows that changed.
-export const REFRESH_SCOPE_SQL = [
-  `INSERT OR REPLACE INTO org_scope (code, pcn, sicbl, icb, region)
-   SELECT c.code, c.pcn, c.sicbl, c.icb, c.region FROM scope_calc c
-   LEFT JOIN org_scope s ON s.code = c.code
-   WHERE s.code IS NULL OR c.pcn IS NOT s.pcn OR c.sicbl IS NOT s.sicbl OR c.icb IS NOT s.icb OR c.region IS NOT s.region`,
-  `DELETE FROM org_scope WHERE code NOT IN (SELECT code FROM scope_calc)`,
-]
-
-// Headline counts cached in meta.stats.
-export const STATS_SQL = `
-  SELECT
-    (SELECT COUNT(*) FROM org) AS orgs,
-    (SELECT COUNT(*) FROM org_role WHERE role = 'RO76') AS practices,
-    (SELECT COUNT(*) FROM org_role r JOIN org o ON o.code = r.code WHERE r.role = 'RO76' AND o.status = 'Active') AS active_practices,
-    (SELECT COUNT(*) FROM org WHERE primary_role = 'RO272') AS pcns,
-    (SELECT COUNT(*) FROM org WHERE primary_role = 'RO272' AND status = 'Active') AS active_pcns,
-    (SELECT COUNT(*) FROM org_role r JOIN org o ON o.code = r.code WHERE r.role = 'RO319' AND r.status = 'Active') AS active_sicbls,
-    (SELECT COUNT(*) FROM org_role r JOIN org o ON o.code = r.code WHERE r.role = 'RO318' AND r.status = 'Active') AS active_icbs,
-    (SELECT COUNT(*) FROM change_event) AS events`
