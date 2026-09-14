@@ -10,11 +10,12 @@ import { GroupBadge, GroupIcon } from '@/components/group-badge'
 import { Lifeline } from '@/components/lifeline'
 import { OrgLink, orgHref } from '@/components/org-link'
 import { StatusBadge } from '@/components/status-badge'
-import { API_BASE, apiUrl, fetchChildren, fetchOrg } from '@/lib/api'
+import { API_BASE, apiUrl, fetchChildren, fetchOrg, optional } from '@/lib/api'
 import { formatDate, formatNumber, formatRange } from '@/lib/format'
 import { groupDef } from '@/lib/groups'
 import { firstParam, pageHref, type Query } from '@/lib/href'
 import { displayAddress, displayName } from '@/lib/names'
+import { codeParam, offsetParam } from '@/lib/params'
 import { inverseRelLabel, relLabel } from '@/lib/rels'
 import { cn } from '@/lib/utils'
 import type { OrgDetail, OrgRef, OrgRelInfo } from '../../../../worker/src/api/types'
@@ -22,9 +23,11 @@ import type { OrgDetail, OrgRef, OrgRelInfo } from '../../../../worker/src/api/t
 type Params = Promise<{ code: string }>
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { code } = await params
-  const detail = await fetchOrg(code.toUpperCase())
-  return { title: detail ? `${displayName(detail.org.name)} (${detail.org.code})` : code.toUpperCase() }
+  const code = codeParam(decodeURIComponent((await params).code))
+  if (!code) return { title: 'Not found' }
+  // Metadata must never fail the page; fall back to the code.
+  const detail = await optional(fetchOrg(code))
+  return { title: detail ? `${displayName(detail.org.name)} (${detail.org.code})` : code }
 }
 
 const TABS = ['overview', 'timeline', 'members', 'relationships', 'details'] as const
@@ -129,8 +132,9 @@ function RelTable({ rows }: { rows: OrgRelInfo[] }) {
 async function Members({ detail, sp }: { detail: OrgDetail; sp: Query }) {
   const group = firstParam(sp.group)
   const status = firstParam(sp.status) ?? 'current'
-  const offset = Number(firstParam(sp.offset) ?? 0) || 0
-  const list = await fetchChildren(detail.org.code, { group, status, limit: 50, offset })
+  const offset = offsetParam(sp.offset)
+  const list = await optional(fetchChildren(detail.org.code, { group, status, limit: 50, offset }))
+  if (!list) return <EmptyState>Members could not be loaded just now. Refresh to try again.</EmptyState>
   const base = `/org/${detail.org.code}`
   const href = (u: Record<string, string | null>) => pageHref(base, sp, { tab: 'members', offset: null, ...u })
   return (
@@ -187,8 +191,10 @@ async function Members({ detail, sp }: { detail: OrgDetail; sp: Query }) {
 }
 
 export default async function OrgPage({ params, searchParams }: { params: Params; searchParams: Promise<Query> }) {
-  const [{ code }, sp] = await Promise.all([params, searchParams])
-  const detail = await fetchOrg(code.toUpperCase())
+  const [{ code: raw }, sp] = await Promise.all([params, searchParams])
+  const code = codeParam(decodeURIComponent(raw))
+  if (!code) notFound()
+  const detail = await fetchOrg(code)
   if (!detail) notFound()
   const { org } = detail
   const def = groupDef(org.group)

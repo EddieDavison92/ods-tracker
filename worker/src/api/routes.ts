@@ -24,7 +24,11 @@ const CODE_RE = /^[A-Z0-9]{1,12}$/
 function dateParam(url: URL, key: string): string | null {
   const v = url.searchParams.get(key)
   if (!v) return null
-  if (!DATE_RE.test(v)) throw new HttpError(400, `${key} must be YYYY-MM-DD`)
+  // Round-trip rejects impossible dates such as 2019-13-45 or 2021-02-30.
+  const d = new Date(`${v}T00:00:00Z`)
+  if (!DATE_RE.test(v) || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v) {
+    throw new HttpError(400, `${key} must be a real date as YYYY-MM-DD`)
+  }
   return v
 }
 
@@ -505,6 +509,8 @@ export async function activity(db: D1Database, url: URL): Promise<{ months: Acti
   const now = new Date()
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1))
   const { clauses, params } = changeFilter(url)
+  // Join org_scope only when an area or type filter needs it; unfiltered months scan events alone.
+  const join = clauses.some((c) => c.includes('s.')) ? 'JOIN org_scope s ON s.code = e.code' : ''
   clauses.unshift('e.detected_at >= ?')
   params.unshift(start.toISOString().slice(0, 10))
   const rows = await all(db, `
@@ -512,7 +518,7 @@ export async function activity(db: D1Database, url: URL): Promise<{ months: Acti
       SUM(e.kind IN ('created', 'reopened')) AS opened,
       SUM(e.kind = 'closed') AS closed,
       SUM(e.kind NOT IN ('created', 'reopened', 'closed')) AS changed
-    FROM change_event e LEFT JOIN org_scope s ON s.code = e.code
+    FROM change_event e ${join}
     WHERE ${clauses.join(' AND ')}
     GROUP BY month ORDER BY month`, params)
   const byMonth = new Map(rows.map((r) => [String(r.month), r]))

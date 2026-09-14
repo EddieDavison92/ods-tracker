@@ -5,7 +5,9 @@ import {
   EVENT_COLS, ORG_COLS, REL_COLS, ROLE_COLS, SUCC_COLS,
   eventRow, insertSql, orgFromRows, orgRow, relRow, roleRow, succRow, type Value,
 } from './rows.ts'
-import { AREA_COUNTS_SQL, GROUP_COUNTS_SQL, REFRESH_SCOPE_SQL, REINDEX_SEARCH_SQL, STATS_SQL } from './derived.ts'
+import {
+  AREA_COUNTS_SQL, FULL_SCOPE_STAGES, GROUP_COUNTS_SQL, INCREMENTAL, REINDEX_SEARCH_SQL, STATS_SQL,
+} from './derived.ts'
 
 type Row = Record<string, Value>
 
@@ -74,18 +76,82 @@ export async function getMeta(db: D1Database, key: string): Promise<string | nul
 export const setMeta = (db: D1Database, key: string, value: string) =>
   db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').bind(key, value)
 
-export async function refreshDerived(db: D1Database) {
-  for (const sql of REFRESH_SCOPE_SQL) await db.prepare(sql).run()
-  const [stats, groups, areas] = await Promise.all([
-    db.prepare(STATS_SQL).first(),
-    db.prepare(GROUP_COUNTS_SQL).all(),
-    db.prepare(AREA_COUNTS_SQL).all(),
-  ])
+export type StageTimings = Record<string, number>
+
+async function timed(timings: StageTimings, name: string, fn: () => Promise<unknown>) {
+  const t0 = Date.now()
+  await fn()
+  timings[name] = (timings[name] ?? 0) + Date.now() - t0
+}
+
+// Codes per statement for incremental stages; keeps each json_each list and query small.
+const CHUNK = 2000
+
+// Recompute org_scope. Without `changed`, rebuilds every stage for all orgs (after a bulk load).
+// With `changed`, recomputes those orgs and the orgs whose area or parent points at them.
+export async function refreshScope(db: D1Database, changed?: string[]): Promise<StageTimings> {
+  const timings: StageTimings = {}
+  if (!changed) {
+    for (const stage of FULL_SCOPE_STAGES) await timed(timings, stage.name, () => db.prepare(stage.sql).run())
+    return timings
+  }
+  if (!changed.length) return timings
+
+  const chunks = <T>(xs: T[]) => Array.from({ length: Math.ceil(xs.length / CHUNK) }, (_, i) => xs.slice(i * CHUNK, (i + 1) * CHUNK))
+  for (const c of chunks(changed)) {
+    const json = JSON.stringify(c)
+    await timed(timings, 'top', () => db.batch([
+      db.prepare(INCREMENTAL.topClear).bind(json),
+      db.prepare(INCREMENTAL.top).bind(json),
+    ]))
+  }
+  // Dependants two levels out: orgs pointing at a changed org, then orgs operated by those.
+  const affected = new Set(changed)
+  let frontier = changed
+  for (let depth = 0; depth < 2 && frontier.length; depth++) {
+    const next: string[] = []
+    for (const c of chunks(frontier)) {
+      await timed(timings, 'dependants', async () => {
+        const { results } = await db.prepare(INCREMENTAL.dependants).bind(JSON.stringify(c)).all<{ code: string }>()
+        for (const r of results) if (!affected.has(r.code)) {
+          affected.add(r.code)
+          next.push(r.code)
+        }
+      })
+    }
+    frontier = next
+  }
+  for (const c of chunks([...affected])) {
+    const json = JSON.stringify(c)
+    await timed(timings, 'chain', () => db.prepare(INCREMENTAL.chain).bind(json).run())
+    await timed(timings, 'scope', () => db.prepare(INCREMENTAL.scope).bind(json).run())
+  }
+  for (const c of chunks(changed)) {
+    const json = JSON.stringify(c)
+    await timed(timings, 'prune', () => db.batch(INCREMENTAL.prune.map((sql) => db.prepare(sql).bind(json))))
+  }
+  timings.affected = affected.size
+  return timings
+}
+
+export async function refreshCounts(db: D1Database): Promise<StageTimings> {
+  const timings: StageTimings = {}
+  let stats: unknown, groups: D1Result, areas: D1Result
+  await timed(timings, 'stats', async () => { stats = await db.prepare(STATS_SQL).first() })
+  await timed(timings, 'groups', async () => { groups = await db.prepare(GROUP_COUNTS_SQL).all() })
+  await timed(timings, 'areas', async () => { areas = await db.prepare(AREA_COUNTS_SQL).all() })
   await db.batch([
     setMeta(db, 'stats', JSON.stringify(stats)),
-    setMeta(db, 'group_counts', JSON.stringify(groups.results)),
-    setMeta(db, 'area_counts', JSON.stringify(areas.results)),
+    setMeta(db, 'group_counts', JSON.stringify(groups!.results)),
+    setMeta(db, 'area_counts', JSON.stringify(areas!.results)),
   ])
+  return timings
+}
+
+export async function refreshDerived(db: D1Database, changed?: string[]): Promise<StageTimings> {
+  const scope = await refreshScope(db, changed)
+  const counts = await refreshCounts(db)
+  return { ...scope, ...counts }
 }
 
 // Full rebuild of the search index, after a bulk import.

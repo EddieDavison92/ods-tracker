@@ -1,12 +1,13 @@
 import type { Metadata } from 'next'
 import { Download } from 'lucide-react'
 import { AreaPicker } from '@/components/area-picker'
-import { scopeLabel } from '@/lib/scopes'
 import { Field, PageHeading, Panel, fieldClass } from '@/components/field'
-import { API_BASE, fetchScopes } from '@/lib/api'
+import { API_BASE, fetchScopes, optional } from '@/lib/api'
 import { GROUPS } from '@/lib/groups'
-import { firstParam, type Query } from '@/lib/href'
+import { type Query } from '@/lib/href'
 import { displayName } from '@/lib/names'
+import { codeParam } from '@/lib/params'
+import { EMPTY_SCOPES, scopeLabel } from '@/lib/scopes'
 import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Export' }
@@ -24,8 +25,8 @@ const ENDPOINTS = [
 const button = 'inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90'
 
 export default async function ExportPage({ searchParams }: { searchParams: Promise<Query> }) {
-  const scope = firstParam((await searchParams).scope)
-  const scopes = await fetchScopes()
+  const scope = codeParam((await searchParams).scope)
+  const scopes = (await optional(fetchScopes())) ?? EMPTY_SCOPES
   const place = displayName(scopeLabel(scopes, scope))
 
   return (
@@ -55,7 +56,7 @@ export default async function ExportPage({ searchParams }: { searchParams: Promi
                 </select>
               </Field>
               <Field label="Name, code or postcode (optional)" htmlFor="q">
-                <input id="q" name="q" className={fieldClass} placeholder="e.g. Boots" />
+                <input id="q" name="q" maxLength={100} className={fieldClass} placeholder="e.g. Boots" />
               </Field>
               <Field label="Area" htmlFor="area">
                 <input id="area" readOnly value={place} className={cn(fieldClass, 'bg-muted text-muted-foreground')} />

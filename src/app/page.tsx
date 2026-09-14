@@ -1,18 +1,19 @@
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { ActivityChart } from '@/components/activity-chart'
-import { isLiveArea, scopeLabel } from '@/lib/scopes'
 import { ChangeList } from '@/components/change-list'
 import { CommandSearch } from '@/components/command-search'
-import { Panel } from '@/components/field'
+import { EmptyState, Panel } from '@/components/field'
 import { GroupIcon } from '@/components/group-badge'
 import { StatTile } from '@/components/stat'
-import { fetchActivity, fetchChanges, fetchFacets, fetchMeta, fetchScopes } from '@/lib/api'
+import { fetchActivity, fetchChanges, fetchFacets, fetchMeta, fetchScopes, optional } from '@/lib/api'
 import { formatDate, formatMonth, formatNumber } from '@/lib/format'
 import { FAMILY_LABELS, FAMILY_ORDER, GROUPS, type GroupKey } from '@/lib/groups'
-import { firstParam, type Query } from '@/lib/href'
+import { type Query } from '@/lib/href'
 import { presetKinds } from '@/lib/kinds'
 import { displayName } from '@/lib/names'
+import { codeParam } from '@/lib/params'
+import { EMPTY_SCOPES, isLiveArea, scopeLabel } from '@/lib/scopes'
 
 // Home feed focuses on NHS services rather than every ODS record (schools, suppliers).
 const CORE_GROUPS = 'gp,pcn,branch,pharmacy,dental,optical,trust,commissioner'
@@ -25,20 +26,23 @@ const EXAMPLES = [
 ]
 
 export default async function HomePage({ searchParams }: { searchParams: Promise<Query> }) {
-  const scope = firstParam((await searchParams).scope)
+  const scope = codeParam((await searchParams).scope)
+  // Each section loads independently, so one slow API call does not blank the page.
   const [meta, scopes, facets, changes, activity] = await Promise.all([
-    fetchMeta(),
-    fetchScopes(),
-    fetchFacets({ scope, status: 'active' }),
-    fetchChanges({ scope, kinds: presetKinds('notable')!.join(','), group: CORE_GROUPS, limit: 10 }),
-    fetchActivity({ scope, months: 24 }),
+    optional(fetchMeta()),
+    optional(fetchScopes()).then((s) => s ?? EMPTY_SCOPES),
+    optional(fetchFacets({ scope, status: 'active' })),
+    optional(fetchChanges({ scope, kinds: presetKinds('notable')!.join(','), group: CORE_GROUPS, limit: 10 })),
+    optional(fetchActivity({ scope, months: 24 })),
   ])
-  const counts = new Map<GroupKey, number>(facets.groups.map((g) => [g.group, g.count]))
+  const counts = new Map<GroupKey, number>((facets?.groups ?? []).map((g) => [g.group, g.count]))
+  const count = (g: GroupKey) => (facets ? formatNumber(counts.get(g) ?? 0) : '—')
   const withScope = (href: string) => (scope ? `${href}${href.includes('?') ? '&' : '?'}scope=${scope}` : href)
   const place = scopeLabel(scopes, scope)
+  const months = activity?.months ?? []
   // Latest month with any data (the current month may not have synced yet).
-  const lastMonth = [...activity.months].reverse().find((m) => m.opened + m.closed + m.changed > 0)
-  const recent = activity.months.slice(-3).reduce((a, m) => a + m.opened + m.closed + m.changed, 0)
+  const lastMonth = [...months].reverse().find((m) => m.opened + m.closed + m.changed > 0)
+  const recent = months.slice(-3).reduce((a, m) => a + m.opened + m.closed + m.changed, 0)
 
   return (
     <>
@@ -52,18 +56,20 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           }}
         />
         <div className="relative mx-auto max-w-7xl px-4 pb-14 pt-12 sm:pt-16">
-          <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 ring-1 ring-inset ring-white/15">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-            Data up to {meta.lastSyncDate ? formatDate(meta.lastSyncDate) : '—'} · history since{' '}
-            {meta.historyFrom ? formatDate(meta.historyFrom) : '2018'}
-          </p>
+          {meta ? (
+            <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 ring-1 ring-inset ring-white/15">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              Data up to {meta.lastSyncDate ? formatDate(meta.lastSyncDate) : '—'} · history since{' '}
+              {meta.historyFrom ? formatDate(meta.historyFrom) : '2018'}
+            </p>
+          ) : null}
           <h1 className="max-w-3xl text-3xl font-semibold tracking-tight sm:text-5xl">
             {scope ? displayName(place) : 'Every NHS organisation in England, and how it has changed'}
           </h1>
           <p className="mt-4 max-w-2xl text-base text-white/75 sm:text-lg">
             {scope
-              ? `${formatNumber(facets.total)} active organisations in this area, from GP practices to trust sites.`
-              : `Search ${formatNumber(meta.stats?.orgs)} organisations from the NHS Organisation Data Service: practices, PCNs, trusts, pharmacies, care homes and more.`}
+              ? `${facets ? formatNumber(facets.total) : 'All'} active organisations in this area, from GP practices to trust sites.`
+              : `Search ${meta?.stats ? formatNumber(meta.stats.orgs) : 'every'} organisation${meta?.stats ? 's' : ''} from the NHS Organisation Data Service: practices, PCNs, trusts, pharmacies, care homes and more.`}
           </p>
           <div className="mt-8 max-w-2xl">
             <CommandSearch variant="hero" />
@@ -81,18 +87,14 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
       <div className="mx-auto -mt-8 max-w-7xl space-y-10 px-4">
         <div className="relative grid grid-cols-2 gap-3 md:grid-cols-4">
-          <StatTile label="Active organisations" value={formatNumber(facets.total)} href={withScope('/explore')} sub={scope ? displayName(place) : 'All types, England'} />
-          <StatTile label="GP practices" value={formatNumber(counts.get('gp') ?? 0)} href={withScope('/explore?group=gp')} sub={`${formatNumber(counts.get('pcn') ?? 0)} PCNs`} icon={<GroupIcon group="gp" size="xs" />} />
-          <StatTile label="Pharmacies" value={formatNumber(counts.get('pharmacy') ?? 0)} href={withScope('/explore?group=pharmacy')} sub={`${formatNumber(counts.get('dental') ?? 0)} dental practices`} icon={<GroupIcon group="pharmacy" size="xs" />} />
+          <StatTile label="Active organisations" value={facets ? formatNumber(facets.total) : '—'} href={withScope('/explore')} sub={scope ? displayName(place) : 'All types, England'} />
+          <StatTile label="GP practices" value={count('gp')} href={withScope('/explore?group=gp')} sub={`${count('pcn')} PCNs`} icon={<GroupIcon group="gp" size="xs" />} />
+          <StatTile label="Pharmacies" value={count('pharmacy')} href={withScope('/explore?group=pharmacy')} sub={`${count('dental')} dental practices`} icon={<GroupIcon group="pharmacy" size="xs" />} />
           <StatTile
             label="Changes, last 3 months"
-            value={formatNumber(recent)}
+            value={activity ? formatNumber(recent) : '—'}
             href={withScope('/changes')}
-            sub={
-              lastMonth
-                ? `${formatNumber(lastMonth.opened)} opened, ${formatNumber(lastMonth.closed)} closed in ${formatMonth(lastMonth.month)}`
-                : undefined
-            }
+            sub={lastMonth ? `${formatNumber(lastMonth.opened)} opened, ${formatNumber(lastMonth.closed)} closed in ${formatMonth(lastMonth.month)}` : undefined}
           />
         </div>
 
@@ -108,7 +110,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </div>
           <div className="space-y-6">
             {FAMILY_ORDER.map((family) => {
-              const groups = GROUPS.filter((g) => g.family === family && (counts.get(g.key) ?? 0) > 0)
+              // Without counts, show every type so browsing still works.
+              const groups = GROUPS.filter((g) => g.family === family && (!facets || (counts.get(g.key) ?? 0) > 0))
               if (!groups.length) return null
               return (
                 <div key={family}>
@@ -124,7 +127,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                         <div className="min-w-0 flex-1">
                           <p className="flex items-baseline justify-between gap-2">
                             <span className="truncate text-sm font-medium group-hover:text-primary">{g.label}</span>
-                            <span className="text-sm font-semibold tabular">{formatNumber(counts.get(g.key))}</span>
+                            <span className="text-sm font-semibold tabular">{facets ? formatNumber(counts.get(g.key)) : ''}</span>
                           </p>
                           <p className="line-clamp-1 text-xs text-muted-foreground">{g.blurb}</p>
                         </div>
@@ -145,13 +148,21 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                 All changes <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
-            <ChangeList items={changes.items} />
+            {changes ? (
+              <ChangeList items={changes.items} />
+            ) : (
+              <EmptyState>Recent changes could not be loaded just now. Refresh to try again.</EmptyState>
+            )}
           </section>
           <div className="space-y-6 lg:col-span-2">
             <Panel title="Changes per month" action={<span className="text-xs text-muted-foreground">Last 24 months</span>}>
-              <ActivityChart data={activity.months} height={190} />
+              {activity ? (
+                <ActivityChart data={activity.months} height={190} />
+              ) : (
+                <p className="py-8 text-center text-sm text-muted-foreground">The chart could not be loaded just now.</p>
+              )}
             </Panel>
-            {!scope ? (
+            {!scope && scopes.regions.length ? (
               <Panel title="Regions" action={<Link href="/areas" className="text-xs font-medium text-primary hover:underline">All areas</Link>} bodyClassName="p-2">
                 <ul>
                   {scopes.regions.filter(isLiveArea).map((r) => (

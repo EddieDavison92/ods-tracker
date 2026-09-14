@@ -7,6 +7,10 @@ export const API_BASE = (process.env.NEXT_PUBLIC_ODS_API_URL ?? DEFAULT_API).rep
 
 export type QueryInput = Record<string, string | number | undefined | null>
 
+// Per attempt; server renders should fail fast rather than hang.
+const TIMEOUT_MS = 12_000
+const RETRIES = 2
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -25,19 +29,41 @@ export function apiUrl(path: string, query: QueryInput = {}): string {
   return url.toString()
 }
 
+const retryable = (status: number) => status === 429 || status >= 500
+
 async function getJson<T>(path: string, query: QueryInput = {}, revalidate = 300): Promise<T> {
-  const res = await fetch(apiUrl(path, query), { next: { revalidate } })
-  if (!res.ok) {
-    let message = res.statusText || `HTTP ${res.status}`
+  const url = apiUrl(path, query)
+  let lastError: unknown
+  for (let attempt = 0; attempt <= RETRIES; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 250 * 2 ** attempt))
     try {
-      const body = (await res.json()) as { error?: string }
-      if (body.error) message = body.error
-    } catch {
-      // body was not JSON
+      const res = await fetch(url, { next: { revalidate }, signal: AbortSignal.timeout(TIMEOUT_MS) })
+      if (res.ok) return (await res.json()) as T
+      let message = res.statusText || `HTTP ${res.status}`
+      try {
+        const body = (await res.json()) as { error?: string }
+        if (body.error) message = body.error
+      } catch {
+        // body was not JSON
+      }
+      lastError = new ApiError(res.status, message)
+      if (!retryable(res.status)) break
+    } catch (err) {
+      // Network failure or timeout: retry.
+      lastError = err instanceof ApiError ? err : new ApiError(503, `ODS API unavailable (${(err as Error).name})`)
     }
-    throw new ApiError(res.status, message)
   }
-  return res.json() as Promise<T>
+  console.error(`API request failed: ${url}`, lastError)
+  throw lastError
+}
+
+// For non-essential page sections: null instead of failing the whole page.
+export async function optional<T>(p: Promise<T>): Promise<T | null> {
+  try {
+    return await p
+  } catch {
+    return null
+  }
 }
 
 export const fetchMeta = () => getJson<Meta>('/api/meta', {}, 60)

@@ -3,15 +3,16 @@ import Link from 'next/link'
 import { Rss } from 'lucide-react'
 import { ActivityChart } from '@/components/activity-chart'
 import { AreaPicker } from '@/components/area-picker'
-import { scopeLabel } from '@/lib/scopes'
 import { ChangeList } from '@/components/change-list'
 import { PageHeading, Panel, Segmented } from '@/components/field'
-import { apiUrl, fetchActivity, fetchChanges, fetchScopes } from '@/lib/api'
+import { apiUrl, fetchActivity, fetchChanges, fetchScopes, optional } from '@/lib/api'
 import { daysAgoIso, formatNumber } from '@/lib/format'
 import { groupDef } from '@/lib/groups'
 import { firstParam, pageHref, type Query } from '@/lib/href'
 import { KIND_PRESETS, presetKinds } from '@/lib/kinds'
 import { displayName } from '@/lib/names'
+import { codeParam, groupsParam, oneOf } from '@/lib/params'
+import { EMPTY_SCOPES, scopeLabel } from '@/lib/scopes'
 import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = { title: 'Changes' }
@@ -37,23 +38,26 @@ const PERIODS = [
 
 export default async function ChangesPage({ searchParams }: { searchParams: Promise<Query> }) {
   const sp = await searchParams
-  const scope = firstParam(sp.scope)
-  const group = firstParam(sp.group) ?? ''
-  const preset = firstParam(sp.kinds) ?? 'notable'
+  const scope = codeParam(sp.scope)
+  const group = groupsParam(sp.group) ?? ''
+  const preset = oneOf(sp.kinds, KIND_PRESETS.map((p) => p.key), 'notable')
   const period = PERIODS.find((p) => p.value === firstParam(sp.period)) ?? PERIODS[1]
-  const before = firstParam(sp.before)
+  const beforeRaw = firstParam(sp.before) ?? ''
+  const before = /^\d{1,12}$/.test(beforeRaw) ? beforeRaw : undefined
   const kinds = presetKinds(preset)?.join(',')
   const since = period.days ? daysAgoIso(period.days) : undefined
 
+  // The feed is essential; the chart and area list degrade.
   const [feed, activity, scopes] = await Promise.all([
     fetchChanges({ scope, group, kinds, since, before, limit: 60 }),
-    fetchActivity({ scope, group, kinds, months: period.months }),
-    fetchScopes(),
+    optional(fetchActivity({ scope, group, kinds, months: period.months })),
+    optional(fetchScopes()).then((s) => s ?? EMPTY_SCOPES),
   ])
   const place = scopeLabel(scopes, scope)
   const href = (u: Record<string, string | null>) => pageHref('/changes', sp, { before: null, ...u })
-  const periodTotal = activity.months.reduce((a, m) => a + m.opened + m.closed + m.changed, 0)
+  const periodTotal = (activity?.months ?? []).reduce((a, m) => a + m.opened + m.closed + m.changed, 0)
   const typeLabel = group ? TYPE_CHIPS.find((c) => c.value === group)?.label ?? groupDef(group).label : null
+  const presetLabel = KIND_PRESETS.find((p) => p.key === preset)?.label.toLowerCase()
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -88,6 +92,7 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
             <Link
               key={c.value || 'all'}
               href={href({ group: c.value || null })}
+              aria-current={group === c.value ? 'true' : undefined}
               className={cn(
                 'rounded-full border px-3 py-1 text-sm transition',
                 group === c.value ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-accent',
@@ -101,7 +106,11 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <ChangeList grouped items={feed.items} />
+          <ChangeList
+            grouped
+            items={feed.items}
+            empty={`No ${presetLabel ?? ''} changes${typeLabel ? ` to ${typeLabel.toLowerCase()}` : ''} in this period. Try a longer period or another type.`}
+          />
           {feed.nextBefore ? (
             <div className="mt-6 text-center">
               <Link href={pageHref('/changes', sp, { before: String(feed.nextBefore) })} className="inline-flex h-9 items-center rounded-lg border bg-card px-4 text-sm font-medium shadow-sm hover:bg-accent">
@@ -112,11 +121,17 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
         </div>
         <div className="space-y-6 lg:sticky lg:top-24 lg:self-start">
           <Panel title="Changes per month" action={<span className="text-xs text-muted-foreground">{period.months === 100 ? 'Since 2018' : 'Last 12 months'}</span>}>
-            <ActivityChart data={activity.months} height={200} />
-            <p className="mt-3 text-xs text-muted-foreground">
-              {formatNumber(periodTotal)} {preset === 'all' ? '' : `${KIND_PRESETS.find((p) => p.key === preset)?.label.toLowerCase()} `}changes
-              {typeLabel ? ` to ${typeLabel.toLowerCase()}` : ''} in this window. Before September 2026 changes are dated to the monthly release that first showed them, so months with big NHS reorganisations spike.
-            </p>
+            {activity ? (
+              <>
+                <ActivityChart data={activity.months} height={200} />
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {formatNumber(periodTotal)} {preset === 'all' ? '' : `${presetLabel} `}changes
+                  {typeLabel ? ` to ${typeLabel.toLowerCase()}` : ''} in this window. Before September 2026 changes are dated to the monthly release that first showed them, so months with big NHS reorganisations spike.
+                </p>
+              </>
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">The chart could not be loaded just now.</p>
+            )}
           </Panel>
         </div>
       </div>

@@ -75,6 +75,7 @@ export async function runSync(env: Env, opts: SyncOptions): Promise<SyncResult> 
     const hashes = await storedHashes(db, queued.map((q) => q.code))
 
     let next = 0
+    const changedCodes: string[] = []
     const worker = async () => {
       while (next < queued.length && Date.now() - started < opts.budgetMs) {
         const { code } = queued[next++]
@@ -87,6 +88,7 @@ export async function runSync(env: Env, opts: SyncOptions): Promise<SyncResult> 
             const prev = hashes.has(code) ? await loadOrg(db, code) : null
             const diff = diffOrg(prev, live)
             await db.batch([...orgWrites(db, code, live, diff, today, 'ord', now), dequeue])
+            changedCodes.push(code)
             result.changed++
             result.events += diff.events.length
           }
@@ -113,8 +115,16 @@ export async function runSync(env: Env, opts: SyncOptions): Promise<SyncResult> 
     } else {
       result.status = 'partial'
     }
-    if (result.changed > 0) await refreshDerived(db)
     await setMeta(db, 'last_sync_at', now).run()
+    // Derived data is recomputed for the changed orgs only. A failure here leaves the sync itself
+    // intact; the next run or POST /admin/refresh catches up.
+    if (changedCodes.length) {
+      try {
+        await refreshDerived(db, changedCodes)
+      } catch (err) {
+        result.error = `refresh failed: ${err instanceof Error ? err.message : String(err)}`
+      }
+    }
   } catch (err) {
     result.status = 'error'
     result.error = err instanceof Error ? err.message : String(err)

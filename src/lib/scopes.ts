@@ -1,6 +1,8 @@
 import { displayName } from '@/lib/names'
 import type { ScopeOption, Scopes } from '../../worker/src/api/types'
 
+export const EMPTY_SCOPES: Scopes = { regions: [], icbs: [], sicbls: [] }
+
 export function scopeLabel(scopes: Scopes, code: string | null | undefined): string {
   if (!code) return 'All England'
   const s = [...scopes.sicbls, ...scopes.icbs, ...scopes.regions].find((o) => o.code === code)

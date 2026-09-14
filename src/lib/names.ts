@@ -27,7 +27,7 @@ function word(w: string, first: boolean): string {
   if (ACRONYMS.has(core)) out = core
   else if (MIXED[core]) out = MIXED[core]
   else if (/\d/.test(core)) out = core
-  else if (core.length <= 4 && !/[AEIOUY]/.test(core)) out = core // likely an acronym, e.g. KCHFT fits the rule below
+  else if (core.length <= 6 && !/[AEIOUY]/.test(core)) out = core // no vowels: an acronym, e.g. KCHFT, BNSSG
   else if (!first && LOWER.has(core.toLowerCase())) out = core.toLowerCase()
   else out = capitalise(core)
   return lead + out + trail

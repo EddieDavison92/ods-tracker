@@ -2,16 +2,17 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Download, Search } from 'lucide-react'
 import { AreaPicker } from '@/components/area-picker'
-import { scopeLabel } from '@/lib/scopes'
 import { EmptyState, PageHeading, Pagination, Segmented, fieldClass } from '@/components/field'
 import { GroupIcon } from '@/components/group-badge'
 import { OrgLink, orgHref } from '@/components/org-link'
 import { StatusBadge } from '@/components/status-badge'
-import { apiUrl, fetchFacets, fetchOrgs, fetchPractices, fetchScopes } from '@/lib/api'
+import { apiUrl, fetchFacets, fetchOrgs, fetchPractices, fetchScopes, optional } from '@/lib/api'
 import { formatDate, formatNumber } from '@/lib/format'
 import { GROUPS, groupDef, type GroupKey } from '@/lib/groups'
-import { firstParam, pageHref, type Query } from '@/lib/href'
+import { pageHref, type Query } from '@/lib/href'
 import { displayName } from '@/lib/names'
+import { codeParam, dateParam, groupParam, offsetParam, oneOf, textParam } from '@/lib/params'
+import { EMPTY_SCOPES, scopeLabel } from '@/lib/scopes'
 import { cn } from '@/lib/utils'
 import type { OrgListRow, PracticeRow } from '../../../worker/src/api/types'
 
@@ -21,14 +22,12 @@ const PAGE = 50
 
 function Context({ row }: { row: OrgListRow }) {
   const bits: React.ReactNode[] = []
-  if (row.parent && row.parent.code !== row.pcn?.code) {
+  if (row.parent && row.parent.code !== row.pcn?.code && row.parent.code !== row.sicbl?.code) {
     bits.push(<span key="p">Part of <OrgLink org={row.parent} showCode={false} className="text-foreground/80" /></span>)
   }
   if (row.pcn && row.group !== 'pcn') bits.push(<span key="pcn"><OrgLink org={row.pcn} showCode={false} className="text-foreground/80" /></span>)
   const area = row.sicbl ?? row.icb
-  if (area && row.group !== 'commissioner') {
-    bits.push(<span key="a">{displayName(area.name)}</span>)
-  }
+  if (area && row.group !== 'commissioner') bits.push(<span key="a">{displayName(area.name)}</span>)
   if (!bits.length) return null
   return (
     <p className="flex min-w-0 flex-wrap gap-x-2 truncate text-xs text-muted-foreground">
@@ -93,20 +92,21 @@ function PracticeAsAtRow({ row }: { row: PracticeRow }) {
 
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<Query> }) {
   const sp = await searchParams
-  const q = firstParam(sp.q)?.trim() ?? ''
-  const group = firstParam(sp.group) as GroupKey | undefined
-  const scope = firstParam(sp.scope)
-  const status = firstParam(sp.status) ?? 'active'
-  const sort = firstParam(sp.sort) ?? (q ? 'relevance' : 'name')
-  const asAt = group === 'gp' ? firstParam(sp.asAt) ?? '' : ''
-  const offset = Number(firstParam(sp.offset) ?? 0) || 0
+  const q = textParam(sp.q)
+  const group: GroupKey | undefined = groupParam(sp.group)
+  const scope = codeParam(sp.scope)
+  const status = oneOf(sp.status, ['active', 'inactive', 'all'] as const, 'active')
+  const sort = oneOf(sp.sort, ['relevance', 'name', 'recent'] as const, q ? 'relevance' : 'name')
+  const asAt = group === 'gp' ? dateParam(sp.asAt) ?? '' : ''
+  const offset = offsetParam(sp.offset)
 
+  // The list is essential; type counts and the area list degrade to empty.
   const [list, facets, scopes] = await Promise.all([
     asAt
       ? fetchPractices({ scope, q, asAt, limit: PAGE, offset }).then((r) => ({ ...r, kind: 'asAt' as const }))
       : fetchOrgs({ q, group, scope, status, sort, limit: PAGE, offset }).then((r) => ({ ...r, kind: 'orgs' as const })),
-    fetchFacets({ q, scope, status }),
-    fetchScopes(),
+    optional(fetchFacets({ q, scope, status })),
+    optional(fetchScopes()).then((s) => s ?? EMPTY_SCOPES),
   ])
 
   const def = group ? groupDef(group) : null
@@ -114,6 +114,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   const href = (updates: Record<string, string | null>) => pageHref('/explore', sp, { offset: null, ...updates })
   const csv = apiUrl('/api/export/orgs.csv', { q, group, scope, status, sort })
   const title = q ? <>Results for “{q}”</> : def ? def.label : 'Explore organisations'
+  const statusWord = status === 'active' ? 'active ' : status === 'inactive' ? 'closed ' : ''
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -123,7 +124,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
         description={
           asAt
             ? `GP practices open on ${formatDate(asAt)}, with the PCN, Sub-ICB and ICB they belonged to then.`
-            : `${formatNumber(list.total)} ${status === 'active' ? 'active ' : status === 'inactive' ? 'closed ' : ''}${def ? def.label.toLowerCase() : 'organisations'}${scope ? ` in ${displayName(place)}` : ' in England'}.`
+            : `${formatNumber(list.total)} ${statusWord}${def ? def.label.toLowerCase() : 'organisations'}${scope ? ` in ${displayName(place)}` : ' in England'}.`
         }
       >
         <AreaPicker scopes={scopes} tone="light" />
@@ -134,39 +135,53 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
       <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
         <aside className="space-y-5">
-          <form method="get" action="/explore" className="relative">
+          <form method="get" action="/explore" className="relative" role="search">
             {group ? <input type="hidden" name="group" value={group} /> : null}
             {scope ? <input type="hidden" name="scope" value={scope} /> : null}
             {status !== 'active' ? <input type="hidden" name="status" value={status} /> : null}
             <Search aria-hidden className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input name="q" defaultValue={q} placeholder="Name, code or postcode" className={cn(fieldClass, 'w-full pl-9')} aria-label="Search" />
+            <input name="q" defaultValue={q} maxLength={100} placeholder="Name, code or postcode" className={cn(fieldClass, 'w-full pl-9')} aria-label="Search organisations" />
           </form>
           <nav aria-label="Organisation type">
             <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</p>
-            <ul className="space-y-0.5">
-              <li>
-                <Link
-                  href={href({ group: null, asAt: null })}
-                  className={cn('flex items-center justify-between rounded-lg px-2 py-1.5 text-sm hover:bg-accent', !group && 'bg-accent font-medium text-accent-foreground')}
-                >
-                  <span>All types</span>
-                  <span className="tabular text-xs text-muted-foreground">{formatNumber(facets.total)}</span>
-                </Link>
-              </li>
-              {facets.groups.map((f) => (
-                <li key={f.group}>
+            {facets ? (
+              <ul className="space-y-0.5">
+                <li>
                   <Link
-                    href={href({ group: f.group, asAt: null })}
-                    className={cn('flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent', group === f.group && 'bg-accent font-medium text-accent-foreground')}
+                    href={href({ group: null, asAt: null })}
+                    className={cn('flex items-center justify-between rounded-lg px-2 py-1.5 text-sm hover:bg-accent', !group && 'bg-accent font-medium text-accent-foreground')}
                   >
-                    <GroupIcon group={f.group} size="xs" />
-                    <span className="min-w-0 flex-1 truncate">{groupDef(f.group).label}</span>
-                    <span className="tabular text-xs text-muted-foreground">{formatNumber(f.count)}</span>
+                    <span>All types</span>
+                    <span className="tabular text-xs text-muted-foreground">{formatNumber(facets.total)}</span>
                   </Link>
                 </li>
-              ))}
-            </ul>
-            {group && !facets.groups.some((f) => f.group === group) ? (
+                {facets.groups.map((f) => (
+                  <li key={f.group}>
+                    <Link
+                      href={href({ group: f.group, asAt: null })}
+                      className={cn('flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent', group === f.group && 'bg-accent font-medium text-accent-foreground')}
+                    >
+                      <GroupIcon group={f.group} size="xs" />
+                      <span className="min-w-0 flex-1 truncate">{groupDef(f.group).label}</span>
+                      <span className="tabular text-xs text-muted-foreground">{formatNumber(f.count)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              // Counts unavailable: still offer every type.
+              <ul className="space-y-0.5">
+                {GROUPS.map((g) => (
+                  <li key={g.key}>
+                    <Link href={href({ group: g.key, asAt: null })} className={cn('flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent', group === g.key && 'bg-accent font-medium')}>
+                      <GroupIcon group={g.key} size="xs" />
+                      <span className="truncate">{g.label}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {group && facets && !facets.groups.some((f) => f.group === group) ? (
               <p className="mt-2 px-2 text-xs text-muted-foreground">No {groupDef(group).label.toLowerCase()} match these filters.</p>
             ) : null}
           </nav>
@@ -204,7 +219,9 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
           </div>
 
           {list.items.length === 0 ? (
-            <EmptyState>No organisations match. Try another search, type or area.</EmptyState>
+            <EmptyState>
+              {q ? `Nothing matches “${q}”. Check the spelling, try fewer words, or search all statuses.` : 'No organisations match these filters.'}
+            </EmptyState>
           ) : (
             <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
               {list.kind === 'asAt'
@@ -213,7 +230,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             </ul>
           )}
           <Pagination pathname="/explore" query={sp} total={list.total} offset={offset} limit={PAGE} />
-          {!group && !q ? (
+          {!group && !q && facets ? (
             <p className="pt-2 text-xs text-muted-foreground">
               Types are derived from each organisation&apos;s ODS primary role. {GROUPS.length} types cover {formatNumber(facets.total)} organisations.
             </p>
