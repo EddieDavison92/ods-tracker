@@ -55,6 +55,8 @@ export interface Meta {
   // Publication date of the TRUD snapshot the database was built from.
   snapshotDate: string | null
   historyFrom: string | null
+  // Highest change event id: a watermark for incremental loads of /api/changes.
+  latestEventId: number | null
   stats: Stats | null
   groups: GroupCount[]
   runs: SyncRunInfo[]
@@ -141,7 +143,14 @@ export interface Facets {
 export interface ListResponse<T> {
   total: number
   items: T[]
+  // The as-at date for historical lists (practices ?asAt=), otherwise null.
   asAt: string | null
+  limit?: number
+  offset?: number
+  // Pass as ?offset= for the next page; null on the last page.
+  nextOffset?: number | null
+  // ODS data is complete up to this date (the snapshot the rows come from).
+  dataAsOf?: string | null
 }
 
 export interface ActivityPoint {
@@ -259,6 +268,8 @@ export interface ChangeItem {
 
 export interface ChangesResponse {
   items: ChangeItem[]
-  // Pass as ?before= to fetch the next page; null when exhausted.
+  // Pass as ?cursor= for the next page (works with either date basis); null when exhausted.
+  nextCursor: string | null
+  // Legacy id cursor for ?before= (detected-date order only).
   nextBefore: number | null
 }

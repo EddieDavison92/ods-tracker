@@ -2,15 +2,19 @@
 import { runSync } from './sync.ts'
 import { refreshDerived, reindexSearch } from './db/store.ts'
 import {
-  HttpError, activity, changes, changesRss, children, facets, meta, orgDetail, orgs, orgsCsv, pcns, practiceRows,
-  practicesCsv, scopes, suggest,
+  HttpError, activity, changes, changesCsv, changesRss, checkParams, children, facets, meta, orgDetail, orgs, orgsCsvStream, pcns,
+  practiceRows, practicesCsv, scopes, suggest,
 } from './api/routes.ts'
 
 // Cron runs have a 15 min wall clock; leave headroom.
 const CRON_BUDGET_MS = 12 * 60_000
 const CRON_MAX_ORGS = 6000
 
-const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET, OPTIONS' }
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Expose-Headers': 'X-Total-Count, X-Data-As-Of, X-Cache',
+}
 const cacheControl = (seconds: number) => ({ 'Cache-Control': `public, max-age=${seconds}` })
 
 // D1 errors worth retrying once for read requests (brief contention, network, restarts).
@@ -34,8 +38,8 @@ function respond(p: Payload, cacheStatus?: string): Response {
 
 // Heavy, slow-changing responses are kept in KV for `ttl` seconds, keyed by path and sorted query.
 async function kvCached(env: Env, ctx: ExecutionContext, url: URL, ttl: number, make: () => Promise<Payload>): Promise<Response> {
-  const params = [...url.searchParams.entries()].sort(([a], [b]) => a.localeCompare(b))
-  const key = `v1:${url.pathname}?${new URLSearchParams(params).toString()}`
+  const params = [...url.searchParams.entries()].filter(([k]) => !k.startsWith('_')).sort(([a], [b]) => a.localeCompare(b))
+  const key = `v2:${url.pathname}?${new URLSearchParams(params).toString()}`
   const hit = await env.CACHE.get<Payload>(key, 'json').catch(() => null)
   if (hit) return respond(hit, 'HIT')
   const payload = await make()
@@ -47,6 +51,9 @@ function authorised(req: Request, env: Env): boolean {
   const token = req.headers.get('Authorization')?.replace(/^Bearer\s+/i, '')
   return !!env.ADMIN_TOKEN && token === env.ADMIN_TOKEN
 }
+
+// Human-readable filename parts: "trust-site", "all-types".
+const slug = (s: string | null, fallback: string) => (s ? s.toLowerCase().replace(/[^a-z0-9]+/g, '-') : fallback)
 
 async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(req.url)
@@ -77,20 +84,19 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
       await reindexSearch(db)
       return respond(jsonPayload({ ok: true }, 0))
     }
-    throw new HttpError(404, 'not found')
+    throw new HttpError(404, 'unknown endpoint')
   }
 
   if (req.method !== 'GET') throw new HttpError(405, 'GET required')
+
+  if (path !== '/' && path in ALLOWED_ENDPOINTS) checkParams(path, url)
 
   switch (path) {
     case '/':
       return respond(jsonPayload({
         name: 'ODS tracker API',
-        endpoints: [
-          '/api/meta', '/api/scopes', '/api/orgs?q=&group=&scope=&status=', '/api/facets', '/api/suggest?q=',
-          '/api/orgs/{code}', '/api/orgs/{code}/children', '/api/practices', '/api/pcns', '/api/changes',
-          '/api/changes/activity', '/api/changes.rss', '/api/export/orgs.csv', '/api/export/practices.csv',
-        ],
+        docs: `${env.APP_URL}/docs`,
+        endpoints: Object.keys(ALLOWED_ENDPOINTS),
       }))
     case '/api/meta':
       return respond(jsonPayload(await meta(db), 60))
@@ -120,23 +126,53 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
         body: await practicesCsv(db, url),
         type: 'text/csv; charset=utf-8',
         seconds: 300,
-        filename: `practices-${url.searchParams.get('scope') || 'england'}-${url.searchParams.get('asAt') || 'current'}.csv`,
+        filename: `gp-practices-${slug(url.searchParams.get('scope'), 'england')}-${url.searchParams.get('asAt') || 'current'}.csv`,
       }))
-    case '/api/export/orgs.csv':
-      return kvCached(env, ctx, url, 3600, async () => ({
-        body: await orgsCsv(db, url),
-        type: 'text/csv; charset=utf-8',
-        seconds: 300,
-        filename: `ods-${url.searchParams.get('group') || 'all'}-${url.searchParams.get('scope') || 'england'}.csv`,
-      }))
+    case '/api/export/changes.csv': {
+      const { body, truncated } = await changesCsv(db, url)
+      return new Response(body, {
+        headers: {
+          ...CORS, ...cacheControl(300), 'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="ods-changes-${slug(url.searchParams.get('scope'), 'england')}.csv"`,
+          // More rows exist than the cap; narrow the filters or page the JSON feed.
+          'X-Truncated': String(truncated),
+        },
+      })
+    }
+    case '/api/export/orgs.csv': {
+      // Streamed with no row cap; X-Total-Count gives the expected row count.
+      const { total, stream } = await orgsCsvStream(db, url)
+      const status = url.searchParams.get('status') ?? 'active'
+      const name = `ods-${slug(url.searchParams.get('group'), 'all-types')}-${slug(url.searchParams.get('scope'), 'england')}-${status}.csv`
+      return new Response(stream, {
+        headers: {
+          ...CORS, ...cacheControl(300), 'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': `attachment; filename="${name}"`, 'X-Total-Count': String(total),
+        },
+      })
+    }
   }
 
-  const kids = path.match(/^\/api\/orgs\/([A-Za-z0-9]+)\/children$/)
-  if (kids) return respond(jsonPayload(await children(db, kids[1].toUpperCase(), url)))
-  const org = path.match(/^\/api\/orgs\/([A-Za-z0-9]+)$/)
-  if (org) return respond(jsonPayload(await orgDetail(db, org[1].toUpperCase())))
+  const kids = path.match(/^\/api\/orgs\/([^/]+)\/children$/)
+  if (kids) {
+    checkParams('children', url)
+    return respond(jsonPayload(await children(db, decodeURIComponent(kids[1]).trim().toUpperCase(), url)))
+  }
+  const org = path.match(/^\/api\/orgs\/([^/]+)$/)
+  if (org) {
+    checkParams('org', url)
+    return respond(jsonPayload(await orgDetail(db, decodeURIComponent(org[1]).trim().toUpperCase())))
+  }
 
-  throw new HttpError(404, 'not found')
+  throw new HttpError(404, 'unknown endpoint')
+}
+
+// Endpoints with a fixed path (parameter rules live in routes.ts ALLOWED_PARAMS).
+const ALLOWED_ENDPOINTS: Record<string, true> = {
+  '/api/meta': true, '/api/scopes': true, '/api/orgs': true, '/api/facets': true, '/api/suggest': true,
+  '/api/practices': true, '/api/pcns': true, '/api/changes': true, '/api/changes/activity': true,
+  '/api/changes.rss': true, '/api/export/orgs.csv': true, '/api/export/practices.csv': true,
+  '/api/export/changes.csv': true,
 }
 
 export default {
