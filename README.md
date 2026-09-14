@@ -80,6 +80,9 @@ Base URL: `https://ods-tracker-api.eddiefox-davison.workers.dev`. Response types
 
 - ODS has no CCG → STP links before 2020; historical ICB/region for older dates is often blank.
   `asAt` queries scoped to an ICB also match practices currently in that ICB.
+- Orgs commissioned by national NHS England hubs (e.g. 13Q, armed forces and health and justice
+  practices) have no ICB link in ODS, so their ICB and region are blank. epraccur fills these from geography.
+- Open/close dates are operational dates; epraccur shows legal dates where they differ.
 - History before the sync started is at monthly (TRUD release) granularity.
 - Archived orgs (long closed) are loaded from TRUD but not served by the ORD API, so they never sync.
 - Fax numbers are stored but not tracked as changes (ORD omits some that TRUD carries).

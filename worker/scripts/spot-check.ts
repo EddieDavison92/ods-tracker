@@ -51,9 +51,12 @@ console.log(`D1 data complete up to ${meta?.value ?? 'unknown'}\n`)
 // 1. epraccur
 const csv = parseCsv(await (await fetch(EPRACCUR)).text())
 console.log(`epraccur: ${csv.length} rows`)
-type Row = { code: string; name: string; status: string; postcode: string | null; op_start: string | null; op_end: string | null; sicbl: string | null; icb: string | null }
+type Row = {
+  code: string; name: string; status: string; postcode: string | null; op_start: string | null; op_end: string | null
+  legal_start: string | null; legal_end: string | null; sicbl: string | null; icb: string | null
+}
 const rows = d1<Row>(`
-  SELECT o.code, o.name, o.status, o.postcode, o.op_start, o.op_end,
+  SELECT o.code, o.name, o.status, o.postcode, o.op_start, o.op_end, o.legal_start, o.legal_end,
     (SELECT r.target FROM org_rel r WHERE r.code = o.code AND r.rel_type = 'RE4' AND r.op_end IS NULL
        ORDER BY r.op_start DESC LIMIT 1) AS sicbl,
     s.icb
@@ -63,28 +66,31 @@ const db = new Map(rows.map((r) => [r.code, r]))
 
 const fields = ['name', 'status', 'postcode', 'open', 'close', 'sub_icb', 'icb'] as const
 const mismatches: Record<string, string[]> = Object.fromEntries(fields.map((f) => [f, []]))
-let missing = 0, compared = 0
+let missing = 0, compared = 0, noIcbLink = 0
 for (const c of csv) {
   const [code, name, , icbCode, , , , , , postcode, open, close, status, , commissioner] = c
   const r = db.get(code)
   if (!r) { missing++; continue }
   compared++
   const expectStatus = status === 'INACTIVE' ? 'Inactive' : 'Active'
+  // No ICB link in ODS (e.g. commissioned by a national NHS England hub); epraccur derives ICB from geography.
+  if (!r.op_end && !r.icb && icbCode) noIcbLink++
   const checks: [typeof fields[number], unknown, unknown][] = [
     ['name', r.name, name],
     ['status', r.status, expectStatus],
     ['postcode', r.postcode, postcode || null],
-    ['open', r.op_start, isoDate(open)],
-    ['close', r.op_end, isoDate(close)],
+    // epraccur carries legal dates where they differ from operational ones.
+    ['open', r.legal_start ?? r.op_start, isoDate(open)],
+    ['close', r.legal_end ?? r.op_end, isoDate(close)],
     // epraccur keeps the last commissioner for closed orgs; D1 only compares open relationships.
     ['sub_icb', r.sicbl ?? commissioner, commissioner],
-    ['icb', r.op_end ? icbCode : r.icb, icbCode],
+    ['icb', r.op_end || !r.icb ? icbCode : r.icb, icbCode],
   ]
   for (const [f, got, want] of checks) {
     if ((got ?? null) !== (want ?? null)) mismatches[f].push(`${code}: d1=${got} epraccur=${want}`)
   }
 }
-console.log(`compared ${compared}, missing from D1 ${missing}`)
+console.log(`compared ${compared}, missing from D1 ${missing}, open orgs with no ODS ICB link ${noIcbLink}`)
 for (const f of fields) {
   const m = mismatches[f]
   console.log(`  ${f.padEnd(8)} ${m.length} mismatches (${((100 * (compared - m.length)) / compared).toFixed(2)}% match)`)
