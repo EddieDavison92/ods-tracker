@@ -1,0 +1,10 @@
+# Local secrets and data; the UI only needs worker/src/api/types.ts from worker/.
+.env*
+.cache
+.playwright-mcp
+worker/node_modules
+worker/.backfill*
+worker/.wrangler
+worker/.dev.vars*
+worker/scripts
+worker/test

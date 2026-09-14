@@ -44,6 +44,8 @@ next-env.d.ts
 .dev.vars*
 worker/worker-configuration.d.ts
 
+.playwright-mcp/
+
 # ODS release downloads and generated backfill SQL
 .cache/
 worker/.backfill*/
