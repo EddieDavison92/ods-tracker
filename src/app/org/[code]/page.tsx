@@ -24,10 +24,16 @@ type Params = Promise<{ code: string }>
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const code = codeParam(decodeURIComponent((await params).code))
-  if (!code) return { title: 'Not found' }
-  // Metadata must never fail the page; fall back to the code.
-  const detail = await optional(fetchOrg(code))
-  return { title: detail ? `${displayName(detail.org.name)} (${detail.org.code})` : code }
+  if (!code) notFound()
+  // Unknown codes 404 here, before any HTML streams; an unavailable API only loses the title.
+  let detail: OrgDetail | null
+  try {
+    detail = await fetchOrg(code)
+  } catch {
+    return { title: code }
+  }
+  if (!detail) notFound()
+  return { title: `${displayName(detail.org.name)} (${detail.org.code})` }
 }
 
 const TABS = ['overview', 'timeline', 'members', 'relationships', 'details'] as const
