@@ -1,27 +1,25 @@
 // Build the D1 database from TRUD HSCOrgRefData releases (item 341).
 // Diffs consecutive releases into change_event history, then writes the latest release as current state.
-// Output: numbered .sql files in --out, imported in order by scripts/import.ts.
+// Output: numbered .sql files in --out, loaded with scripts/import.ts.
 //
 // Usage:
-//   node --max-old-space-size=16000 scripts/backfill.ts --dir ../.cache/trud            # local release zips
-//   node --max-old-space-size=16000 scripts/backfill.ts --refdata                       # refdata-uk R2 archive
-//   options: --from YYYY-MM-DD (skip older releases)  --out .backfill
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+//   node --env-file=.env --max-old-space-size=16000 scripts/backfill.ts --trud   # all releases via TRUD API
+//   node --max-old-space-size=16000 scripts/backfill.ts --dir ../.cache/trud      # local release zips
+//   options: --from YYYY-MM-DD (skip older releases)  --out .backfill  --cache ../.cache/trud
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { parseArgs } from 'node:util'
 import { readSnapshot, type Snapshot } from './lib/snapshot.ts'
 import { SqlWriter } from './lib/sql.ts'
+import { downloadRelease, listReleases, type TrudRelease } from './lib/trud.ts'
 import { diffOrg } from '../src/ods/diff.ts'
 import { hashOrg, type OrgRecord } from '../src/ods/model.ts'
 import { EVENT_COLS, ORG_COLS, REL_COLS, ROLE_COLS, SUCC_COLS, eventRow, orgRow, relRow, roleRow, succRow } from '../src/db/rows.ts'
 
-const run = promisify(execFile)
 const { values: args } = parseArgs({
   options: {
     dir: { type: 'string' },
-    refdata: { type: 'boolean', default: false },
+    trud: { type: 'boolean', default: false },
     from: { type: 'string' },
     out: { type: 'string', default: '.backfill' },
     cache: { type: 'string', default: '../.cache/trud' },
@@ -33,35 +31,31 @@ const out = resolve(ROOT, args.out!)
 const cache = resolve(ROOT, args.cache!)
 const releaseDate = (name: string) => name.match(/_(\d{4})(\d{2})(\d{2})\d+\.zip$/)?.slice(1, 4).join('-') ?? ''
 
-// Resolve release zips oldest-first, fetching from refdata-uk R2 on demand.
-interface Release { date: string; path: string; key?: string }
+// Release zips oldest-first; TRUD releases are downloaded on demand into --cache.
+interface Release { date: string; path: string; trud?: TrudRelease }
 let releases: Release[]
-if (args.refdata) {
-  const keys: string[] = JSON.parse(readFileSync(join(ROOT, 'scripts/refdata-snapshots.json'), 'utf8'))
+if (args.trud) {
   mkdirSync(cache, { recursive: true })
-  releases = keys.map((key) => ({ date: releaseDate(key), path: join(cache, basename(key)), key }))
+  releases = (await listReleases()).map((r) => ({ date: releaseDate(r.archiveFileName), path: join(cache, r.archiveFileName), trud: r }))
 } else if (args.dir) {
   const dir = resolve(ROOT, args.dir)
   releases = readdirSync(dir).filter((f) => /^hscorgrefdataxml_data_.*\.zip$/.test(f))
     .map((f) => ({ date: releaseDate(f), path: join(dir, f) }))
 } else {
-  throw new Error('pass --dir <folder> or --refdata')
+  throw new Error('pass --trud or --dir <folder>')
 }
 releases = releases.filter((r) => !args.from || r.date >= args.from).sort((a, b) => a.date.localeCompare(b.date))
 if (!releases.length) throw new Error('no releases found')
 
-async function fetchRelease(r: Release) {
-  if (existsSync(r.path) || !r.key) return
-  await run('npx', ['wrangler', 'r2', 'object', 'get', `refdata-uk/${r.key}`, '--remote', '--file', r.path], {
-    cwd: ROOT, shell: true, env: { ...process.env, CLOUDFLARE_ACCOUNT_ID: 'e7ffabec5d1df79297886025881e4a03' },
-  })
+const fetchRelease = async (r: Release) => {
+  if (r.trud) await downloadRelease(r.trud, cache)
 }
 
 rmSync(out, { recursive: true, force: true })
 const events = new SqlWriter(out, '50-events', 'change_event', EVENT_COLS)
 const summary: Record<string, unknown>[] = []
 
-let prev: { date: string; orgs: Map<string, OrgRecord>; hashes: Map<string, string> } | null = null
+let prev: { orgs: Map<string, OrgRecord>; hashes: Map<string, string> } | null = null
 let last: Snapshot | null = null
 let prefetch = fetchRelease(releases[0])
 
@@ -94,7 +88,7 @@ for (let i = 0; i < releases.length; i++) {
   console.log(`${snap.date} ${snap.orgs.size} orgs, ${changed} changed, ${Object.values(kinds).reduce((a, b) => a + b, 0)} events (${secs}s)`)
   summary.push({ release: basename(r.path), date: snap.date, orgs: snap.orgs.size, changed, kinds })
 
-  prev = { date: snap.date, orgs: snap.orgs, hashes }
+  prev = { orgs: snap.orgs, hashes }
   last = snap
 }
 events.close()
@@ -127,7 +121,7 @@ relRefs.close()
 const meta = new SqlWriter(out, '90-meta', 'meta', ['key', 'value'])
 meta.add(['snapshot_date', snap.date])
 meta.add(['last_sync_date', snap.date])
-meta.add(['history_from', releases[0].date])
+meta.add(['history_from', String(summary[0].date)])
 meta.add(['backfill_at', now])
 meta.close()
 

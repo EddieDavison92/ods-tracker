@@ -12,5 +12,5 @@
     "erasableSyntaxOnly": true,
     "skipLibCheck": true
   },
-  "include": [".", "../src/ods"]
+  "include": [".", "../test", "../src/ods", "../src/api/summary.ts", "../src/api/types.ts", "../src/db/rows.ts"]
 }

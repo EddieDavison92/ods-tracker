@@ -6,12 +6,13 @@
     "dev": "wrangler dev --test-scheduled",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit && tsc --noEmit -p scripts",
-    "test": "node --test test/",
+    "test": "node --test test/*.test.ts",
     "cf-typegen": "wrangler types",
     "db:migrate:local": "wrangler d1 migrations apply ods-tracker --local",
     "db:migrate:remote": "wrangler d1 migrations apply ods-tracker --remote",
-    "backfill": "node --max-old-space-size=16000 scripts/backfill.ts",
-    "trud:download": "node scripts/trud-download.ts",
+    "backfill": "node --env-file=.env --max-old-space-size=16000 scripts/backfill.ts --trud",
+    "import": "node scripts/import.ts",
+    "trud:download": "node --env-file=.env scripts/trud-download.ts",
     "spot-check": "node scripts/spot-check.ts"
   },
   "devDependencies": {

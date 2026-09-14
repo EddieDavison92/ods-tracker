@@ -177,9 +177,12 @@ export async function practiceRows(db: D1Database, url: URL, paged = true): Prom
   const offset = paged ? intParam(url, 'offset', 0, 1_000_000) : 0
 
   if (asAt) {
+    // Match the hierarchy on the date, or the practice's current one: ODS has no CCG -> STP
+    // links before 2020, so "practices in today's ICB as they were in 2019" needs the latter.
     const text = textFilter(url, ['x.name', 'x.code', 'x.postcode'])
-    const where = `WHERE ${scope ? SCOPE_WHERE.replace(/s\./g, 'x.') : '1 = 1'} AND ${text.sql}`
-    const params: Params = [asAt, ...(scope ? scopeParams(scope) : []), ...text.params]
+    const scopeSql = `(${SCOPE_WHERE.replace(/s\./g, 'x.')} OR EXISTS (SELECT 1 FROM org_scope s WHERE s.code = x.code AND ${SCOPE_WHERE}))`
+    const where = `WHERE ${scope ? scopeSql : '1 = 1'} AND ${text.sql}`
+    const params: Params = [asAt, ...(scope ? [...scopeParams(scope), ...scopeParams(scope)] : []), ...text.params]
     const base = `SELECT * FROM (${AS_AT_PRACTICES}) x ${where}`
     const [count, rows] = await Promise.all([
       db.prepare(`SELECT COUNT(*) AS n FROM (${base})`).bind(...params).first<{ n: number }>(),
