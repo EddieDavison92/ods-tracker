@@ -20,7 +20,7 @@ const INVERSE: Record<string, string> = {
   RE4: 'Commissions',
   RE5: 'In area',
   RE6: 'Operates',
-  RE8: 'Partner',
+  RE8: 'Member',
   RE9: 'Payee',
   RE10: 'COVID payee',
   RE11: 'Constituent',

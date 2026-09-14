@@ -101,25 +101,18 @@ export function Pagination({
       <p className="tabular text-muted-foreground">
         {from.toLocaleString('en-GB')}–{to.toLocaleString('en-GB')} of {total.toLocaleString('en-GB')}
       </p>
+      {/* Unavailable directions are left out rather than greyed out. */}
       <div className="flex gap-2">
         {prev !== null ? (
           <Link className={cn(btn, 'hover:bg-accent')} href={pageHref(pathname, query, { offset: prev || null })}>
             <ChevronLeft aria-hidden className="h-4 w-4" /> Previous
           </Link>
-        ) : (
-          <span className={cn(btn, 'text-muted-foreground opacity-60')}>
-            <ChevronLeft aria-hidden className="h-4 w-4" /> Previous
-          </span>
-        )}
+        ) : null}
         {next !== null ? (
           <Link className={cn(btn, 'hover:bg-accent')} href={pageHref(pathname, query, { offset: next })}>
             Next <ChevronRight aria-hidden className="h-4 w-4" />
           </Link>
-        ) : (
-          <span className={cn(btn, 'text-muted-foreground opacity-60')}>
-            Next <ChevronRight aria-hidden className="h-4 w-4" />
-          </span>
-        )}
+        ) : null}
       </div>
     </nav>
   )

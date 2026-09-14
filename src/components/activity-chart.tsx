@@ -19,13 +19,15 @@ function niceMax(max: number): { top: number; step: number } {
 }
 
 const compact = (n: number) => new Intl.NumberFormat('en-GB', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
-const monthLabel = (m: string, withYear = false) => format(parseISO(`${m}-01`), withYear ? 'MMM yyyy' : 'MMM', {})
+// Buckets are YYYY-MM, or YYYY for yearly charts.
+const monthLabel = (m: string, withYear = false) =>
+  m.length === 4 ? m : format(parseISO(`${m}-01`), withYear ? 'MMM yyyy' : 'MMM', {})
 
 export function ActivityChart({ data, height = 200 }: { data: ActivityPoint[]; height?: number }) {
+  // The measured wrapper stays mounted; observing an element that is then replaced reports width 0.
   const ref = useRef<HTMLDivElement>(null)
   // Unknown until measured: drawing at a guessed width would widen the page on phones.
   const [width, setWidth] = useState<number | null>(null)
-  const [hover, setHover] = useState<number | null>(null)
 
   useEffect(() => {
     const el = ref.current
@@ -35,15 +37,15 @@ export function ActivityChart({ data, height = 200 }: { data: ActivityPoint[]; h
     return () => ro.disconnect()
   }, [])
 
-  if (width === null) {
-    return (
-      <div className="space-y-3">
-        <div className="h-4" />
-        <div ref={ref} className="w-full min-w-0" style={{ height }} aria-hidden />
-      </div>
-    )
-  }
+  return (
+    <div ref={ref} className="w-full min-w-0">
+      {width ? <Chart data={data} height={height} width={width} /> : <div style={{ height: height + 28 }} aria-hidden />}
+    </div>
+  )
+}
 
+function Chart({ data, height, width }: { data: ActivityPoint[]; height: number; width: number }) {
+  const [hover, setHover] = useState<number | null>(null)
   const totals = data.map((d) => d.opened + d.closed + d.changed)
   const { top, step } = niceMax(Math.max(0, ...totals))
   const plotW = width - M.left - M.right
@@ -65,12 +67,17 @@ export function ActivityChart({ data, height = 200 }: { data: ActivityPoint[]; h
           </li>
         ))}
       </ul>
+      {/* Announces the month under the keyboard cursor. */}
+      <p aria-live="polite" className="sr-only">
+        {active
+          ? `${monthLabel(active.month, true)}: ${active.opened} openings, ${active.closed} closures, ${active.changed} other changes`
+          : ''}
+      </p>
       <div
-        ref={ref}
-        className="relative outline-none"
+        className="relative rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2"
         tabIndex={0}
         role="img"
-        aria-label="Monthly changes chart. Use left and right arrow keys to read values."
+        aria-label="Monthly changes chart. Use left and right arrow keys to read each month, or open the table below."
         onMouseLeave={() => setHover(null)}
         onBlur={() => setHover(null)}
         onKeyDown={(e) => {

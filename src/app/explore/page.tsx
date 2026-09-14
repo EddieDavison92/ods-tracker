@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Download, Search } from 'lucide-react'
-import { AreaPicker } from '@/components/area-picker'
 import { EmptyState, PageHeading, Pagination, Segmented, fieldClass } from '@/components/field'
 import { GroupIcon } from '@/components/group-badge'
 import { OrgLink, orgHref } from '@/components/org-link'
@@ -10,7 +9,7 @@ import { apiUrl, fetchFacets, fetchOrgs, fetchPractices, fetchScopes, optional }
 import { formatDate, formatNumber } from '@/lib/format'
 import { GROUPS, groupDef, type GroupKey } from '@/lib/groups'
 import { pageHref, type Query } from '@/lib/href'
-import { displayName } from '@/lib/names'
+import { displayName, lowerLabel } from '@/lib/names'
 import { codeParam, dateParam, groupParam, offsetParam, oneOf, textParam } from '@/lib/params'
 import { EMPTY_SCOPES, scopeLabel } from '@/lib/scopes'
 import { cn } from '@/lib/utils'
@@ -30,7 +29,7 @@ function Context({ row }: { row: OrgListRow }) {
   if (area && row.group !== 'commissioner') bits.push(<span key="a">{displayName(area.name)}</span>)
   if (!bits.length) return null
   return (
-    <p className="flex min-w-0 flex-wrap gap-x-2 truncate text-xs text-muted-foreground">
+    <p className="flex min-w-0 gap-x-2 truncate text-xs text-muted-foreground">
       {bits.map((b, i) => (
         <span key={i} className="inline-flex min-w-0 items-center gap-2 truncate">
           {i > 0 ? <span aria-hidden>·</span> : null}
@@ -55,7 +54,8 @@ function OrgRow({ row }: { row: OrgListRow }) {
           {closed ? <StatusBadge status={row.status} /> : null}
         </div>
         <p className="truncate text-xs text-muted-foreground">
-          {displayName(row.primaryRole?.name) || groupDef(row.group).singular}
+          {/* A GP practice's primary role is the generic prescribing cost centre; the type says more. */}
+          {(row.group !== 'gp' && displayName(row.primaryRole?.name)) || groupDef(row.group).singular}
           {row.town ? ` · ${displayName(row.town)}` : ''}
           {row.postcode ? ` · ${row.postcode}` : ''}
         </p>
@@ -124,24 +124,17 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
         description={
           asAt
             ? `GP practices open on ${formatDate(asAt)}, with the PCN, Sub-ICB and ICB they belonged to then.`
-            : `${formatNumber(list.total)} ${statusWord}${def ? def.label.toLowerCase() : 'organisations'}${scope ? ` in ${displayName(place)}` : ' in England'}.`
+            : `${formatNumber(list.total)} ${statusWord}${def ? lowerLabel(def.label) : 'organisations'}${scope ? ` in ${displayName(place)}` : ' in England'}.`
         }
       >
-        <AreaPicker scopes={scopes} tone="light" />
         <a href={asAt ? apiUrl('/api/export/practices.csv', { scope, asAt }) : csv} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-sm hover:bg-accent">
           <Download aria-hidden className="h-4 w-4" /> CSV
         </a>
       </PageHeading>
 
       <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
-        <aside className="space-y-5">
-          <form method="get" action="/explore" className="relative" role="search">
-            {group ? <input type="hidden" name="group" value={group} /> : null}
-            {scope ? <input type="hidden" name="scope" value={scope} /> : null}
-            {status !== 'active' ? <input type="hidden" name="status" value={status} /> : null}
-            <Search aria-hidden className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <input name="q" defaultValue={q} maxLength={100} placeholder="Name, code or postcode" className={cn(fieldClass, 'w-full pl-9')} aria-label="Search organisations" />
-          </form>
+        {/* Below lg the type list follows the results, so the first thing on a phone is the answer. */}
+        <aside className="order-last space-y-5 lg:order-none">
           <nav aria-label="Organisation type">
             <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</p>
             {facets ? (
@@ -182,12 +175,21 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               </ul>
             )}
             {group && facets && !facets.groups.some((f) => f.group === group) ? (
-              <p className="mt-2 px-2 text-xs text-muted-foreground">No {groupDef(group).label.toLowerCase()} match these filters.</p>
+              <p className="mt-2 px-2 text-xs text-muted-foreground">No {lowerLabel(groupDef(group).label)} match these filters.</p>
             ) : null}
+            {asAt ? <p className="mt-2 px-2 text-xs text-muted-foreground">Type counts are for today, not {formatDate(asAt)}.</p> : null}
           </nav>
         </aside>
 
         <div className="min-w-0 space-y-3">
+          <form method="get" action="/explore" className="relative" role="search">
+            {group ? <input type="hidden" name="group" value={group} /> : null}
+            {scope ? <input type="hidden" name="scope" value={scope} /> : null}
+            {status !== 'active' ? <input type="hidden" name="status" value={status} /> : null}
+            {asAt ? <input type="hidden" name="asAt" value={asAt} /> : null}
+            <Search aria-hidden className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <input name="q" defaultValue={q} maxLength={100} placeholder="Name, code or postcode" className={cn(fieldClass, 'w-full pl-9')} aria-label="Search organisations" />
+          </form>
           <div className="flex flex-wrap items-center gap-2">
             {!asAt ? (
               <Segmented

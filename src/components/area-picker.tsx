@@ -1,13 +1,14 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import * as Popover from '@radix-ui/react-popover'
 import { Check, ChevronDown, ChevronRight, MapPin, Search } from 'lucide-react'
+import { API_BASE } from '@/lib/api'
 import { displayName } from '@/lib/names'
 import { cn } from '@/lib/utils'
 import { isLiveArea, scopeLabel } from '@/lib/scopes'
-import type { ScopeOption, Scopes } from '../../worker/src/api/types'
+import type { ScopeOption, Scopes, Suggestion } from '../../worker/src/api/types'
 
 // Pages that filter by ?scope. Elsewhere, picking an area opens Explore.
 const SCOPED_PATHS = ['/', '/explore', '/changes', '/export']
@@ -15,18 +16,52 @@ const SCOPED_PATHS = ['/', '/explore', '/changes', '/export']
 const compact = (n: number | undefined) =>
   n == null ? '' : new Intl.NumberFormat('en-GB', { notation: 'compact', maximumFractionDigits: 1 }).format(n)
 
+const TYPE_LABEL: Record<ScopeOption['type'], string> = { region: 'Region', icb: 'ICB', sicbl: 'Sub-ICB' }
+
 export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: 'dark' | 'light' }) {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
   const current = params.get('scope')
+  const scoped = SCOPED_PATHS.includes(pathname)
   const [open, setOpen] = useState(false)
   const [filter, setFilter] = useState('')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [pcns, setPcns] = useState<Suggestion[]>([])
+  const [pcnName, setPcnName] = useState<Record<string, string>>({})
+
+  const known = [...scopes.regions, ...scopes.icbs, ...scopes.sicbls].some((s) => s.code === current)
+  // PCN (or other) scopes are not in the area list; look the name up once.
+  useEffect(() => {
+    if (!current || known || pcnName[current]) return
+    let cancelled = false
+    fetch(`${API_BASE}/api/suggest?q=${encodeURIComponent(current)}`)
+      .then((r) => r.json())
+      .then((b: { items: Suggestion[] }) => {
+        const hit = b.items?.find((i) => i.code === current)
+        if (!cancelled && hit) setPcnName((m) => ({ ...m, [current]: displayName(hit.name) }))
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [current, known, pcnName])
+
+  const f = filter.trim().toLowerCase()
+  // PCNs matching the filter by name (not part of the area tree).
+  useEffect(() => {
+    if (f.length < 3) return
+    const t = setTimeout(() => {
+      fetch(`${API_BASE}/api/suggest?q=${encodeURIComponent(f)}&group=pcn`)
+        .then((r) => r.json())
+        .then((b: { items: Suggestion[] }) => setPcns((b.items ?? []).filter((i) => i.status === 'Active').slice(0, 6)))
+        .catch(() => setPcns([]))
+    }, 200)
+    return () => clearTimeout(t)
+  }, [f])
 
   const select = (code: string | null) => {
     setOpen(false)
-    const scoped = SCOPED_PATHS.includes(pathname)
     const next = new URLSearchParams(scoped ? params.toString() : '')
     next.delete('offset')
     next.delete('before')
@@ -44,16 +79,18 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
       return next
     })
 
-  const f = filter.trim().toLowerCase()
   const matches = useMemo(
     () =>
       f
         ? [...scopes.regions, ...scopes.icbs, ...scopes.sicbls]
             .filter((s) => s.name.toLowerCase().includes(f) || s.code.toLowerCase() === f)
-            .slice(0, 40)
+            .sort((a, b) => Number(isLiveArea(b)) - Number(isLiveArea(a)))
+            .slice(0, 30)
         : [],
     [f, scopes],
   )
+  const pcnMatches = f.length >= 3 ? pcns : []
+  const label = current && !known ? pcnName[current] ?? current : scopeLabel(scopes, current)
 
   const Row = ({ s, depth, expandable }: { s: ScopeOption; depth: number; expandable?: boolean }) => (
     <div className="flex items-center" style={{ paddingLeft: depth * 16 }}>
@@ -61,26 +98,27 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
         <button
           type="button"
           onClick={() => toggle(s.code)}
-          aria-label={expanded.has(s.code) ? 'Collapse' : 'Expand'}
-          className="flex h-7 w-6 items-center justify-center text-muted-foreground hover:text-foreground"
+          aria-expanded={expanded.has(s.code)}
+          aria-label={`${expanded.has(s.code) ? 'Collapse' : 'Expand'} ${displayName(s.name)}`}
+          className="flex h-8 w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
         >
           {expanded.has(s.code) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
       ) : (
-        <span className="w-6" />
+        <span className="w-7" />
       )}
       <button
         type="button"
         onClick={() => select(s.code)}
         className={cn(
-          'flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent',
+          'flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
           current === s.code && 'bg-accent font-medium text-accent-foreground',
-          !s.active && 'text-muted-foreground',
+          !isLiveArea(s) && 'text-muted-foreground',
         )}
       >
         <span className="min-w-0 flex-1 truncate">
           {displayName(s.name)}
-          {!s.active ? ' (closed)' : ''}
+          {!isLiveArea(s) ? ' (former)' : ''}
         </span>
         {s.counts ? <span className="tabular text-xs text-muted-foreground">{compact(s.counts.active)}</span> : null}
         {current === s.code ? <Check className="h-3.5 w-3.5 text-primary" /> : null}
@@ -94,15 +132,16 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
       <Popover.Trigger asChild>
         <button
           type="button"
+          aria-label={`Area: ${label}. Change area`}
           className={cn(
-            'inline-flex h-9 max-w-[16rem] items-center gap-2 rounded-lg px-3 text-sm transition',
+            'inline-flex h-9 max-w-[16rem] items-center gap-2 rounded-lg px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2',
             tone === 'dark'
-              ? 'bg-white/10 text-white ring-1 ring-inset ring-white/15 hover:bg-white/15'
-              : 'border bg-card shadow-sm hover:bg-accent',
+              ? 'bg-white/10 text-white ring-1 ring-inset ring-white/15 hover:bg-white/15 focus-visible:ring-white/80'
+              : 'border bg-card shadow-sm hover:bg-accent focus-visible:ring-ring/40',
           )}
         >
           <MapPin aria-hidden className="h-4 w-4 shrink-0 opacity-80" />
-          <span className="truncate">{scopeLabel(scopes, current)}</span>
+          <span className="truncate">{label}</span>
           <ChevronDown aria-hidden className="h-3.5 w-3.5 shrink-0 opacity-70" />
         </button>
       </Popover.Trigger>
@@ -112,38 +151,69 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
           sideOffset={8}
           className="z-50 w-[min(26rem,calc(100vw-1.5rem))] rounded-xl border bg-popover p-2 shadow-2xl"
         >
-          <div className="mb-2 flex items-center gap-2 rounded-lg border px-2">
+          <label htmlFor="area-filter" className="mb-1 block px-1 text-xs font-medium text-muted-foreground">
+            Find an area or PCN
+          </label>
+          <div className="mb-2 flex items-center gap-2 rounded-lg border px-2 focus-within:ring-2 focus-within:ring-ring/40">
             <Search aria-hidden className="h-4 w-4 text-muted-foreground" />
             <input
+              id="area-filter"
               autoFocus
               value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-              placeholder="Find a region, ICB or Sub-ICB"
+              onChange={(e) => {
+                setFilter(e.target.value)
+                if (e.target.value.trim().length < 3) setPcns([])
+              }}
+              onKeyDown={(e) => {
+                // Enter picks the first match.
+                if (e.key === 'Enter') {
+                  const first = matches[0]?.code ?? pcnMatches[0]?.code
+                  if (first) {
+                    e.preventDefault()
+                    select(first)
+                  }
+                }
+              }}
+              placeholder="e.g. Kent, 93C or Islington PCN"
               className="h-9 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
           </div>
           <div className="max-h-[60vh] overflow-y-auto">
             {f ? (
-              matches.length ? (
-                matches.map((s) => (
+              <>
+                {matches.map((s) => (
                   <div key={s.code} className="flex items-center gap-1">
                     <Row s={s} depth={0} />
-                    <span className="w-16 shrink-0 text-right text-[11px] uppercase text-muted-foreground">
-                      {s.type === 'sicbl' ? 'Sub-ICB' : s.type === 'icb' ? 'ICB' : 'Region'}
-                    </span>
+                    <span className="w-16 shrink-0 text-right text-[11px] uppercase text-muted-foreground">{TYPE_LABEL[s.type]}</span>
                   </div>
-                ))
-              ) : (
-                <p className="px-2 py-4 text-center text-sm text-muted-foreground">No areas match.</p>
-              )
+                ))}
+                {pcnMatches.map((p) => (
+                  <div key={p.code} className="flex items-center gap-1">
+                    <span className="w-7" />
+                    <button
+                      type="button"
+                      onClick={() => select(p.code)}
+                      className="flex min-h-8 min-w-0 flex-1 items-center rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                    >
+                      <span className="truncate">{displayName(p.name)}</span>
+                    </button>
+                    <span className="w-16 shrink-0 text-right text-[11px] uppercase text-muted-foreground">PCN</span>
+                  </div>
+                ))}
+                {!matches.length && !pcnMatches.length ? (
+                  <p className="px-2 py-4 text-center text-sm text-muted-foreground">
+                    No areas match. Areas are NHS regions, ICBs, Sub-ICB locations and PCNs; to find places, search a name or postcode instead.
+                  </p>
+                ) : null}
+              </>
             ) : (
               <>
                 <div className="flex items-center">
-                  <span className="w-6" />
+                  <span className="w-7" />
                   <button
                     type="button"
                     onClick={() => select(null)}
-                    className={cn('flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent', !current && 'bg-accent font-medium')}
+                    className={cn('flex min-h-8 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40', !current && 'bg-accent font-medium')}
                   >
                     <span className="flex-1">All England</span>
                     {!current ? <Check className="h-3.5 w-3.5 text-primary" /> : null}
@@ -169,7 +239,9 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
               </>
             )}
           </div>
-          <p className="mt-2 border-t px-2 pt-2 text-[11px] text-muted-foreground">Counts are active organisations of all types.</p>
+          <p className="mt-2 border-t px-2 pt-2 text-[11px] text-muted-foreground">
+            {scoped ? 'Counts are active organisations of all types.' : 'Choosing an area opens Explore filtered to it.'}
+          </p>
         </Popover.Content>
       </Popover.Portal>
     </Popover.Root>

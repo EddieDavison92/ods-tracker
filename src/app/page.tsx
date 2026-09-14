@@ -21,7 +21,7 @@ const CORE_GROUPS = 'gp,pcn,branch,pharmacy,dental,optical,trust,commissioner'
 const EXAMPLES = [
   { label: 'Archway Medical Centre', href: '/org/F83004' },
   { label: 'UCLH', href: '/org/RRV' },
-  { label: 'North West London', href: '/org/Z9B2Z' },
+  { label: 'West and North London ICB', href: '/org/Z9B2Z' },
   { label: 'Pharmacies in London', href: '/explore?group=pharmacy&scope=Y56' },
 ]
 

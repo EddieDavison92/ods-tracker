@@ -9,13 +9,25 @@ import { displayName } from '@/lib/names'
 import { cn } from '@/lib/utils'
 import type { ChangeItem } from '../../worker/src/api/types'
 
-function groupByDetected(items: ChangeItem[]) {
-  const groups: { date: string; items: ChangeItem[] }[] = []
-  for (const item of items) {
+// 'detected': grouped by the date the change appeared in ODS (the change feed).
+// 'effective': grouped by year of the date it took effect (an org's own history).
+// 'effectiveDay': grouped by the date it took effect (the change feed by effective date).
+export type GroupBy = 'detected' | 'effective' | 'effectiveDay'
+
+const effectiveOf = (i: ChangeItem) => i.effectiveDate ?? i.detectedAt
+const newestEffectiveFirst = (a: ChangeItem, b: ChangeItem) => effectiveOf(b).localeCompare(effectiveOf(a)) || b.id - a.id
+
+function groupItems(items: ChangeItem[], by: GroupBy) {
+  const groups: { key: string; label: string; items: ChangeItem[] }[] = []
+  const sorted = by === 'detected' ? items : [...items].sort(newestEffectiveFirst)
+  for (const item of sorted) {
+    const key = by === 'effective' ? effectiveOf(item).slice(0, 4) : by === 'effectiveDay' ? effectiveOf(item) : item.detectedAt
     const last = groups[groups.length - 1]
-    if (last && last.date === item.detectedAt) last.items.push(item)
-    else groups.push({ date: item.detectedAt, items: [item] })
+    if (last && last.key === key) last.items.push(item)
+    else groups.push({ key, label: by === 'effective' ? key : formatDate(key), items: [item] })
   }
+  // Within a detection date, older effective dates sit lower.
+  if (by === 'detected') for (const g of groups) g.items.sort(newestEffectiveFirst)
   return groups
 }
 
@@ -26,8 +38,11 @@ function verbPhrase(item: ChangeItem): string | null {
   return item.summary.endsWith(suffix) ? item.summary.slice(0, -suffix.length).trim() : null
 }
 
+const singular = (item: ChangeItem) =>
+  groupDef(item.group).singular.toLowerCase().replace(/^gp /, 'GP ').replace(/^nhs /, 'NHS ').replace(/^pcn$/, 'PCN')
+
 function Detail({ item }: { item: ChangeItem }) {
-  if (item.kind === 'created') return <span>New {groupDef(item.group).singular.toLowerCase().replace(/^gp /, 'GP ').replace(/^nhs /, 'NHS ').replace(/^pcn$/, 'PCN')}</span>
+  if (item.kind === 'created') return <span>New {singular(item)}</span>
   if (item.kind === 'name' && item.oldValue && item.newValue) {
     return (
       <span>
@@ -39,9 +54,7 @@ function Detail({ item }: { item: ChangeItem }) {
     return (
       <span className="block">
         <span>Moved to {displayName(item.newValue)}</span>
-        {item.oldValue ? (
-          <span className="block truncate text-xs text-muted-foreground">was {displayName(item.oldValue)}</span>
-        ) : null}
+        {item.oldValue ? <span className="block truncate text-xs text-muted-foreground">was {displayName(item.oldValue)}</span> : null}
       </span>
     )
   }
@@ -56,8 +69,31 @@ function Detail({ item }: { item: ChangeItem }) {
   return <span>{item.summary}</span>
 }
 
-export function ChangeRow({ item, showDate = false, hideOrg = false }: { item: ChangeItem; showDate?: boolean; hideOrg?: boolean }) {
-  const effective = item.effectiveDate && item.effectiveDate !== item.detectedAt ? item.effectiveDate : null
+function Dates({ item, by, showDate }: { item: ChangeItem; by?: GroupBy; showDate?: boolean }) {
+  const effective = item.effectiveDate
+  const differs = effective && effective !== item.detectedAt
+  const parts: string[] = []
+  if (by === 'effective') {
+    parts.push(formatDate(effectiveOf(item)))
+    if (differs) parts.push(`recorded ${formatDate(item.detectedAt)}`)
+  } else {
+    if (showDate) parts.push(`Detected ${formatDate(item.detectedAt)}`)
+    if (differs) parts.push(`Effective ${formatDate(effective)}`)
+  }
+  return parts.length ? <p className="text-xs text-muted-foreground">{parts.join(' · ')}</p> : null
+}
+
+export function ChangeRow({
+  item,
+  showDate = false,
+  hideOrg = false,
+  by,
+}: {
+  item: ChangeItem
+  showDate?: boolean
+  hideOrg?: boolean
+  by?: GroupBy
+}) {
   return (
     <li className="flex gap-3 px-4 py-3">
       <KindIcon kind={item.kind} className="mt-0.5" />
@@ -71,13 +107,7 @@ export function ChangeRow({ item, showDate = false, hideOrg = false }: { item: C
         <div className={cn('text-sm leading-snug', hideOrg && 'pt-1')}>
           <Detail item={item} />
         </div>
-        {effective || showDate ? (
-          <p className="text-xs text-muted-foreground">
-            {showDate ? `Detected ${formatDate(item.detectedAt)}` : null}
-            {showDate && effective ? ' · ' : null}
-            {effective ? `Effective ${formatDate(effective)}` : null}
-          </p>
-        ) : null}
+        <Dates item={item} by={by} showDate={showDate} />
       </div>
     </li>
   )
@@ -86,12 +116,14 @@ export function ChangeRow({ item, showDate = false, hideOrg = false }: { item: C
 export function ChangeList({
   items,
   grouped = false,
+  by = 'detected',
   hideOrg = false,
   empty = 'No changes match these filters.',
   className,
 }: {
   items: ChangeItem[]
   grouped?: boolean
+  by?: GroupBy
   // Omit the org name on each row (e.g. an org's own timeline).
   hideOrg?: boolean
   empty?: string
@@ -99,27 +131,26 @@ export function ChangeList({
 }) {
   if (items.length === 0) return <EmptyState>{empty}</EmptyState>
   if (!grouped) {
+    const list = by === 'effective' ? [...items].sort(newestEffectiveFirst) : items
     return (
       <ul className={cn('divide-y rounded-xl border bg-card shadow-sm', className)}>
-        {items.map((item) => (
-          <ChangeRow key={item.id} item={item} showDate hideOrg={hideOrg} />
+        {list.map((item) => (
+          <ChangeRow key={item.id} item={item} showDate hideOrg={hideOrg} by={by} />
         ))}
       </ul>
     )
   }
   return (
     <div className={cn('space-y-5', className)}>
-      {groupByDetected(items).map((group) => (
-        <section key={group.date} aria-label={formatDate(group.date)}>
+      {groupItems(items, by).map((group) => (
+        <section key={group.key} aria-label={group.label}>
           <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            {formatDate(group.date)}
-            <span className="rounded-full bg-muted px-1.5 py-px font-medium normal-case tracking-normal tabular">
-              {group.items.length}
-            </span>
+            {group.label}
+            <span className="rounded-full bg-muted px-1.5 py-px font-medium normal-case tracking-normal tabular">{group.items.length}</span>
           </h3>
           <ul className="divide-y rounded-xl border bg-card shadow-sm">
             {group.items.map((item) => (
-              <ChangeRow key={item.id} item={item} hideOrg={hideOrg} />
+              <ChangeRow key={item.id} item={item} hideOrg={hideOrg} by={by} />
             ))}
           </ul>
         </section>

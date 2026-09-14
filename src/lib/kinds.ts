@@ -71,14 +71,16 @@ export const KIND_ICONS: Record<ChangeKind, LucideIcon> = {
   succ_removed: GitMerge,
 }
 
-// Presets for the change feed filter.
-export const KIND_PRESETS: { key: string; label: string; kinds: ChangeKind[] | null }[] = [
+// Presets for the change feed filter. `field` narrows to one relationship type (RE8 = PCN partner).
+export const KIND_PRESETS: { key: string; label: string; kinds: ChangeKind[] | null; field?: string }[] = [
   { key: 'notable', label: 'Notable', kinds: ['created', 'closed', 'reopened', 'name', 'address', 'rel_added', 'rel_ended', 'succ_added'] },
   { key: 'lifecycle', label: 'Openings and closures', kinds: ['created', 'closed', 'reopened', 'removed'] },
+  { key: 'pcn', label: 'PCN joins and leaves', kinds: ['rel_added', 'rel_ended'], field: 'RE8' },
   { key: 'identity', label: 'Names and addresses', kinds: ['name', 'address', 'contact'] },
-  { key: 'membership', label: 'Memberships', kinds: ['rel_added', 'rel_ended', 'rel_changed', 'succ_added'] },
+  { key: 'membership', label: 'All relationships', kinds: ['rel_added', 'rel_ended', 'rel_changed', 'succ_added'] },
   { key: 'all', label: 'Everything', kinds: null },
 ]
 
-export const presetKinds = (key: string | undefined) =>
-  (KIND_PRESETS.find((p) => p.key === key) ?? KIND_PRESETS[0]).kinds
+const preset = (key: string | undefined) => KIND_PRESETS.find((p) => p.key === key) ?? KIND_PRESETS[0]
+export const presetKinds = (key: string | undefined) => preset(key).kinds
+export const presetField = (key: string | undefined) => preset(key).field

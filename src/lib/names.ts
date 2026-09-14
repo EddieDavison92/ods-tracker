@@ -50,6 +50,9 @@ export function displayName(name: string | null | undefined): string {
     .join('')
 }
 
+// A type label mid-sentence: "Pharmacies" -> "pharmacies", keeping "GP practices" and "NHS trusts".
+export const lowerLabel = (s: string) => s.replace(/^\p{Lu}\p{Ll}/u, (m) => m.toLowerCase())
+
 export function displayAddress(parts: (string | null | undefined)[]): string {
   return parts.filter(Boolean).map((p) => displayName(p)).join(', ')
 }

@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { ChevronRight, ExternalLink, Globe, MapPin, Phone, Rss } from 'lucide-react'
+import { ChevronRight, ExternalLink, Globe, Info, MapPin, Phone, Rss } from 'lucide-react'
 import { ChangeList } from '@/components/change-list'
 import { CopyButton } from '@/components/copy-button'
 import { EmptyState, Pagination, Panel, Segmented } from '@/components/field'
@@ -15,7 +15,7 @@ import { formatDate, formatNumber, formatRange } from '@/lib/format'
 import { groupDef } from '@/lib/groups'
 import { firstParam, pageHref, type Query } from '@/lib/href'
 import { displayAddress, displayName } from '@/lib/names'
-import { codeParam, offsetParam } from '@/lib/params'
+import { codeParam, groupParam, offsetParam, oneOf } from '@/lib/params'
 import { inverseRelLabel, relLabel } from '@/lib/rels'
 import { cn } from '@/lib/utils'
 import type { OrgDetail, OrgRef, OrgRelInfo } from '../../../../worker/src/api/types'
@@ -55,18 +55,20 @@ function Fact({ label, children, icon }: { label: string; children: ReactNode; i
   )
 }
 
+const inlineLink = 'text-primary underline decoration-primary/40 underline-offset-2 hover:decoration-primary'
+
 function Crumbs({ detail }: { detail: OrgDetail }) {
   const h = detail.hierarchy
   const chain: OrgRef[] = [h.region, h.icb, h.sicbl, h.pcn].filter((x): x is OrgRef => !!x && x.code !== detail.org.code)
   if (detail.parent && !chain.some((c) => c.code === detail.parent!.code) && detail.parent.code !== detail.org.code) chain.push(detail.parent)
   if (!chain.length) return null
   return (
-    <nav aria-label="Where it sits" className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-      <Link href="/areas" className="hover:text-foreground">England</Link>
+    <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+      <Link href="/areas" className="py-1 hover:text-foreground">England</Link>
       {chain.map((c) => (
         <span key={c.code} className="inline-flex items-center gap-1">
           <ChevronRight aria-hidden className="h-3 w-3" />
-          <Link href={orgHref(c.code)} className="hover:text-foreground hover:underline">
+          <Link href={orgHref(c.code)} className="py-1 hover:text-foreground hover:underline">
             {displayName(c.name)?.replace(/ Commissioning Region$/i, '') || c.code}
           </Link>
         </span>
@@ -135,30 +137,50 @@ function RelTable({ rows }: { rows: OrgRelInfo[] }) {
   )
 }
 
+// What the linked-organisations list is called for each kind of org.
+function membersLabel(detail: OrgDetail): { tab: string; title: string; note: string } {
+  const g = detail.org.group
+  if (g === 'pcn') return { tab: 'Members', title: 'Members', note: 'Practices and other organisations recorded as partners of this PCN.' }
+  if (g === 'trust' || g === 'independent') return { tab: 'Sites', title: 'Sites and services', note: 'Sites and services this organisation operates.' }
+  if (g === 'gp') return { tab: 'Sites', title: 'Branches and sites', note: 'Branch surgeries and other sites linked to this practice.' }
+  return {
+    tab: 'Linked',
+    title: 'Linked organisations',
+    note: detail.area
+      ? 'Organisations with a direct ODS relationship to this one (commissioned, operated or constituent). For everything located in the area, use In this area.'
+      : 'Organisations with a direct ODS relationship to this one.',
+  }
+}
+
 async function Members({ detail, sp }: { detail: OrgDetail; sp: Query }) {
-  const group = firstParam(sp.group)
-  const status = firstParam(sp.status) ?? 'current'
+  const group = groupParam(sp.group)
+  const status = oneOf(sp.status, ['current', 'past', 'all'] as const, 'current')
   const offset = offsetParam(sp.offset)
   const list = await optional(fetchChildren(detail.org.code, { group, status, limit: 50, offset }))
   if (!list) return <EmptyState>Members could not be loaded just now. Refresh to try again.</EmptyState>
   const base = `/org/${detail.org.code}`
   const href = (u: Record<string, string | null>) => pageHref(base, sp, { tab: 'members', offset: null, ...u })
+  const { note } = membersLabel(detail)
   return (
     <div className="space-y-4">
+      <p className="flex items-start gap-2 text-sm text-muted-foreground">
+        <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+        {note}
+      </p>
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={href({ group: null })} className={cn('rounded-full border px-3 py-1 text-sm', !group ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-accent')}>
-          All <span className="tabular opacity-80">{formatNumber(detail.childrenTotal)}</span>
+        <Link href={href({ group: null })} className={cn('inline-flex min-h-8 items-center rounded-full border px-3 py-1 text-sm', !group ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-accent')}>
+          All <span className="ml-1.5 tabular opacity-80">{formatNumber(detail.childrenTotal)}</span>
         </Link>
         {detail.childGroups.map((g) => (
           <Link
             key={g.group}
             href={href({ group: g.group })}
-            className={cn('inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm', group === g.group ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-accent')}
+            className={cn('inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-sm', group === g.group ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-accent')}
           >
             {groupDef(g.group).label} <span className="tabular opacity-80">{formatNumber(g.total)}</span>
           </Link>
         ))}
-        <div className="ml-auto">
+        <div className="sm:ml-auto">
           <Segmented
             label="Membership"
             value={status}
@@ -168,12 +190,15 @@ async function Members({ detail, sp }: { detail: OrgDetail; sp: Query }) {
         </div>
       </div>
       {list.items.length === 0 ? (
-        <EmptyState>No {status === 'past' ? 'past' : status === 'all' ? '' : 'current'} members of this type.</EmptyState>
+        <EmptyState>
+          No {status === 'all' ? '' : `${status} `}linked organisations{group ? ' of this type' : ''}.
+          {status === 'current' ? ' Try Past or All.' : ''}
+        </EmptyState>
       ) : (
         <ul className="divide-y rounded-xl border bg-card shadow-sm">
           {list.items.map((c) => (
-            <li key={c.code} className="flex items-center gap-3 px-4 py-2.5">
-              <GroupIcon group={c.group} />
+            <li key={c.code} className="flex items-start gap-3 px-4 py-3">
+              <GroupIcon group={c.group} className="mt-0.5" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2">
                   <Link href={orgHref(c.code)} className={cn('font-medium hover:text-primary hover:underline', c.status !== 'Active' && 'text-muted-foreground')}>
@@ -184,9 +209,9 @@ async function Members({ detail, sp }: { detail: OrgDetail; sp: Query }) {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {groupDef(c.group).singular} · {c.relTypes.map((t) => inverseRelLabel(t.code)).join(', ')}
+                  <span className="tabular"> · {formatRange(c.start, c.end)}</span>
                 </p>
               </div>
-              <p className="hidden shrink-0 text-right text-xs tabular text-muted-foreground sm:block">{formatRange(c.start, c.end)}</p>
             </li>
           ))}
         </ul>
@@ -212,14 +237,25 @@ export default async function OrgPage({ params, searchParams }: { params: Params
   const today = new Date().toISOString().slice(0, 10)
   const current = detail.parents.filter((r) => !r.opEnd)
   const past = detail.parents.filter((r) => r.opEnd)
-  const tabs: { key: Tab; label: string; count?: number }[] = [
+  const members = membersLabel(detail)
+  const tabs: { key: Tab; label: string; short?: string; count?: number }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'timeline', label: 'Timeline', count: detail.events.length + detail.relatedEvents.length },
-    ...(hasMembers ? [{ key: 'members' as const, label: org.group === 'trust' ? 'Sites' : 'Members', count: detail.childrenTotal }] : []),
-    { key: 'relationships', label: 'Relationships', count: detail.parents.length + detail.successions.length },
+    ...(hasMembers ? [{ key: 'members' as const, label: members.tab, count: detail.childrenTotal }] : []),
+    { key: 'relationships', label: 'Relationships', short: 'Links', count: detail.parents.length + detail.successions.length },
     { key: 'details', label: 'Details' },
   ]
   const view = firstParam(sp.view) === 'related' ? 'related' : 'own'
+  const rss = apiUrl('/api/changes.rss', { code: org.code })
+
+  // ODS can keep Status=Active after a legal end or succession (e.g. merged ICBs); say so plainly.
+  const successor = detail.successions.find((s) => s.type === 'Successor' && s.date && s.date <= today)
+  const legallyEnded = !!org.legalEnd && org.legalEnd <= today
+  const ended = org.status === 'Active' && (legallyEnded || !!successor)
+  // GP practices' primary role is the generic "prescribing cost centre"; the type says enough.
+  const roleName = org.group !== 'gp' && org.primaryRole && displayName(org.primaryRole.name).toLowerCase() !== def.singular.toLowerCase()
+    ? displayName(org.primaryRole.name)
+    : null
 
   return (
     <article>
@@ -231,15 +267,30 @@ export default async function OrgPage({ params, searchParams }: { params: Params
             <div className="min-w-0 flex-1 space-y-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{displayName(org.name)}</h1>
-                <StatusBadge status={org.status} />
+                <StatusBadge status={ended ? 'Inactive' : org.status} labels={['Active', ended ? 'Ended' : 'Closed']} />
               </div>
               <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted-foreground">
                 <CopyButton value={org.code} />
                 <span>{def.singular}</span>
-                {org.primaryRole && displayName(org.primaryRole.name).toLowerCase() !== def.singular.toLowerCase() ? (
-                  <span>· {displayName(org.primaryRole.name)}</span>
-                ) : null}
+                {roleName ? <span>· {roleName}</span> : null}
+                <a
+                  href={rss}
+                  className="inline-flex min-h-7 items-center gap-1.5 rounded-md border bg-card px-2 text-sm shadow-sm hover:bg-accent"
+                  title="Subscribe in Outlook, Feedly or any RSS reader to hear about changes"
+                >
+                  <Rss aria-hidden className="h-3.5 w-3.5 text-[#eb6834]" /> Follow changes
+                </a>
               </div>
+              {ended ? (
+                <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-inset ring-amber-200">
+                  <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    {legallyEnded ? `Legally ended ${formatDate(org.legalEnd)}` : 'Replaced'}
+                    {successor ? <>; succeeded by <OrgLink org={successor.org} className="font-medium" /> from {formatDate(successor.date)}</> : null}.
+                    {' '}ODS still lists its status as Active.
+                  </span>
+                </p>
+              ) : null}
             </div>
           </div>
           <dl className="grid gap-x-8 gap-y-4 pb-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -248,24 +299,27 @@ export default async function OrgPage({ params, searchParams }: { params: Params
               {org.opStart ? <span className="text-muted-foreground"> · {yearsSince(org.opStart, org.opEnd)}</span> : null}
             </Fact>
             <Fact label="Address" icon={<MapPin aria-hidden className="h-3 w-3" />}>
-              {displayAddress([...org.address, org.town]) || '—'}
+              {displayAddress([...org.address, org.town, org.county]) || '—'}
               {org.postcode ? (
                 <>
                   {', '}
-                  <a className="text-primary hover:underline" href={`https://www.google.com/maps/search/${encodeURIComponent(org.postcode)}`} target="_blank" rel="noreferrer">
-                    {org.postcode}
+                  <a className={inlineLink} href={`https://www.google.com/maps/search/${encodeURIComponent(org.postcode)}`} target="_blank" rel="noreferrer">
+                    {org.postcode}<span className="sr-only"> (opens map in a new tab)</span>
                   </a>
                 </>
               ) : null}
             </Fact>
             <Fact label="Contact" icon={<Phone aria-hidden className="h-3 w-3" />}>
-              {org.tel ? <a href={`tel:${org.tel.replace(/\s/g, '')}`} className="hover:text-primary">{org.tel}</a> : '—'}
+              {org.tel ? <a href={`tel:${org.tel.replace(/\s/g, '')}`} className={inlineLink}>{org.tel}</a> : <span className="text-muted-foreground">No phone in ODS</span>}
               {website ? (
-                <a href={website} target="_blank" rel="noreferrer" className="mt-0.5 flex items-center gap-1 truncate text-primary hover:underline">
+                <a href={website} target="_blank" rel="noreferrer" className={cn('mt-0.5 flex items-center gap-1 truncate', inlineLink)}>
                   <Globe aria-hidden className="h-3 w-3 shrink-0" />
                   <span className="truncate">{website.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')}</span>
+                  <span className="sr-only"> (opens in a new tab)</span>
                 </a>
-              ) : null}
+              ) : (
+                <span className="mt-0.5 block text-xs text-muted-foreground">No website in ODS</span>
+              )}
             </Fact>
             <Fact label="Last changed in ODS">{formatDate(org.lastChange)}</Fact>
           </dl>
@@ -281,16 +335,23 @@ export default async function OrgPage({ params, searchParams }: { params: Params
                   href={t.key === 'overview' ? base : `${base}?tab=${t.key}`}
                   aria-current={tab === t.key ? 'page' : undefined}
                   className={cn(
-                    'inline-flex shrink-0 items-center gap-1.5 border-b-2 px-2.5 py-2.5 text-sm transition sm:px-3',
+                    'inline-flex min-h-11 shrink-0 items-center gap-1.5 border-b-2 px-2.5 text-sm transition sm:px-3',
                     tab === t.key ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
                   )}
                 >
-                  {t.label}
+                  {t.short ? (
+                    <>
+                      <span className="sm:hidden">{t.short}</span>
+                      <span className="hidden sm:inline">{t.label}</span>
+                    </>
+                  ) : (
+                    t.label
+                  )}
                   {t.count ? <span className="hidden rounded-full bg-muted px-1.5 text-xs tabular sm:inline">{formatNumber(t.count)}</span> : null}
                 </Link>
               ))}
             </nav>
-            <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-card sm:hidden" />
+            <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-card sm:hidden" />
           </div>
         </div>
       </header>
@@ -310,7 +371,7 @@ export default async function OrgPage({ params, searchParams }: { params: Params
                 bodyClassName="p-0"
               >
                 {detail.events.length ? (
-                  <ChangeList hideOrg items={detail.events.slice(0, 6)} className="rounded-none border-0 shadow-none" />
+                  <ChangeList hideOrg by="effective" items={[...detail.events].sort((a, b) => (b.effectiveDate ?? b.detectedAt).localeCompare(a.effectiveDate ?? a.detectedAt)).slice(0, 6)} className="rounded-none border-0 shadow-none" />
                 ) : (
                   <p className="p-4 text-sm text-muted-foreground">No changes recorded since the history began.</p>
                 )}
@@ -330,12 +391,12 @@ export default async function OrgPage({ params, searchParams }: { params: Params
               <Panel title="Where it sits">
                 <Hierarchy detail={detail} />
               </Panel>
-              {detail.area?.length ? (
-                <Panel title="In this area" bodyClassName="p-2">
+              {detail.area?.some((g) => g.active > 0) ? (
+                <Panel title="In this area" action={<span className="text-xs text-muted-foreground">Active</span>} bodyClassName="p-2">
                   <ul>
-                    {detail.area.slice(0, 10).map((g) => (
+                    {detail.area.filter((g) => g.active > 0).map((g) => (
                       <li key={g.group}>
-                        <Link href={`/explore?scope=${org.code}&group=${g.group}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent">
+                        <Link href={`/explore?scope=${org.code}&group=${g.group}`} className="flex min-h-8 items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent">
                           <GroupIcon group={g.group} size="xs" />
                           <span className="flex-1">{groupDef(g.group).label}</span>
                           <span className="tabular text-xs text-muted-foreground">{formatNumber(g.active)}</span>
@@ -343,17 +404,18 @@ export default async function OrgPage({ params, searchParams }: { params: Params
                       </li>
                     ))}
                   </ul>
-                  <Link href={`/changes?scope=${org.code}`} className="mt-1 block rounded-lg px-2 py-1.5 text-xs font-medium text-primary hover:bg-accent">
-                    Changes in this area →
-                  </Link>
+                  <div className="mt-1 flex flex-wrap gap-x-4 px-2 py-1.5 text-xs font-medium">
+                    <Link href={`/explore?scope=${org.code}`} className="text-primary hover:underline">Explore all</Link>
+                    <Link href={`/changes?scope=${org.code}`} className="text-primary hover:underline">Changes in this area</Link>
+                  </div>
                 </Panel>
               ) : null}
               {hasMembers ? (
-                <Panel title={org.group === 'trust' ? 'Sites and services' : 'Members'} bodyClassName="p-2">
+                <Panel title={members.title} bodyClassName="p-2">
                   <ul>
                     {detail.childGroups.slice(0, 8).map((g) => (
                       <li key={g.group}>
-                        <Link href={`${base}?tab=members&group=${g.group}`} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent">
+                        <Link href={`${base}?tab=members&group=${g.group}`} className="flex min-h-8 items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-accent">
                           <GroupIcon group={g.group} size="xs" />
                           <span className="flex-1">{groupDef(g.group).label}</span>
                           <span className="tabular text-xs text-muted-foreground">
@@ -387,19 +449,21 @@ export default async function OrgPage({ params, searchParams }: { params: Params
               label="Timeline"
               value={view}
               options={[
-                { value: 'own', label: `Changes to this organisation (${detail.events.length})` },
+                { value: 'own', label: `This organisation (${detail.events.length})` },
                 { value: 'related', label: `Involving it (${detail.relatedEvents.length})` },
               ]}
               hrefFor={(v) => `${base}?tab=timeline${v === 'related' ? '&view=related' : ''}`}
             />
+            <p className="text-xs text-muted-foreground">Grouped by the year each change took effect, newest first.</p>
             <ChangeList
               grouped
+              by="effective"
               hideOrg={view !== 'related'}
               items={view === 'related' ? detail.relatedEvents : detail.events}
               empty="No changes recorded."
             />
-            <a href={apiUrl('/api/changes.rss', { code: org.code })} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary">
-              <Rss aria-hidden className="h-3.5 w-3.5" /> RSS feed for this organisation
+            <a href={rss} className="inline-flex min-h-8 items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
+              <Rss aria-hidden className="h-3.5 w-3.5" /> Follow changes to this organisation (RSS)
             </a>
           </div>
         ) : null}
@@ -435,44 +499,47 @@ export default async function OrgPage({ params, searchParams }: { params: Params
         ) : null}
 
         {tab === 'details' ? (
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
             <Panel title="Roles" className="lg:col-span-2">
-              <table className="w-full text-sm">
-                <thead className="text-left text-xs text-muted-foreground">
-                  <tr className="border-b">
-                    <th className="py-2 pr-3 font-medium">Role</th>
-                    <th className="py-2 pr-3 font-medium">Dates</th>
-                    <th className="py-2 font-medium">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {detail.roles.map((r) => (
-                    <tr key={r.id} className="border-b last:border-0">
-                      <td className="py-2 pr-3">
-                        {displayName(r.role.name) || r.role.code} <span className="font-mono text-xs text-muted-foreground">{r.role.code}</span>
-                        {r.primary ? <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-[11px] font-medium text-accent-foreground">Primary</span> : null}
-                      </td>
-                      <td className="whitespace-nowrap py-2 pr-3 tabular">{formatRange(r.opStart, r.opEnd)}</td>
-                      <td className="py-2"><StatusBadge status={r.status} labels={['Active', 'Ended']} /></td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs text-muted-foreground">
+                    <tr className="border-b">
+                      <th className="py-2 pr-3 font-medium">Role</th>
+                      <th className="py-2 pr-3 font-medium">Dates</th>
+                      <th className="py-2 font-medium">Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {detail.roles.map((r) => (
+                      <tr key={r.id} className="border-b last:border-0">
+                        <td className="py-2 pr-3">
+                          {displayName(r.role.name) || r.role.code} <span className="font-mono text-xs text-muted-foreground">{r.role.code}</span>
+                          {r.primary ? <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-[11px] font-medium text-accent-foreground">Primary</span> : null}
+                        </td>
+                        <td className="whitespace-nowrap py-2 pr-3 tabular">{formatRange(r.opStart, r.opEnd)}</td>
+                        <td className="py-2"><StatusBadge status={r.status} labels={['Active', 'Ended']} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </Panel>
             <Panel title="Record">
               <dl className="space-y-3">
                 <Fact label="ODS code"><span className="font-mono">{org.code}</span></Fact>
                 <Fact label="Type"><GroupBadge group={org.group} /></Fact>
+                <Fact label="ODS status">{org.status}</Fact>
                 <Fact label="Record class">{org.recordClass === 'RC2' ? 'Site (RC2)' : 'Organisation (RC1)'}</Fact>
                 {org.legalStart ? <Fact label="Legal dates">{formatRange(org.legalStart, org.legalEnd)}</Fact> : null}
                 {org.uprn ? <Fact label="UPRN"><span className="font-mono">{org.uprn}</span></Fact> : null}
-                <Fact label="Links">
+                <Fact label="Source records">
                   <span className="flex flex-col gap-1">
-                    <a className="inline-flex items-center gap-1 text-primary hover:underline" href={`https://directory.spineservices.nhs.uk/ORD/2-0-0/organisations/${org.code}?_format=json`} target="_blank" rel="noreferrer">
-                      ORD record <ExternalLink aria-hidden className="h-3 w-3" />
+                    <a className={cn('inline-flex items-center gap-1', inlineLink)} href={`https://directory.spineservices.nhs.uk/ORD/2-0-0/organisations/${org.code}?_format=json`} target="_blank" rel="noreferrer">
+                      Official ODS record <ExternalLink aria-hidden className="h-3 w-3" /><span className="sr-only"> (opens in a new tab)</span>
                     </a>
-                    <a className="inline-flex items-center gap-1 text-primary hover:underline" href={`${API_BASE}/api/orgs/${org.code}`} target="_blank" rel="noreferrer">
-                      Tracker API <ExternalLink aria-hidden className="h-3 w-3" />
+                    <a className={cn('inline-flex items-center gap-1', inlineLink)} href={`${API_BASE}/api/orgs/${org.code}`} target="_blank" rel="noreferrer">
+                      This record as JSON <ExternalLink aria-hidden className="h-3 w-3" /><span className="sr-only"> (opens in a new tab)</span>
                     </a>
                   </span>
                 </Fact>
