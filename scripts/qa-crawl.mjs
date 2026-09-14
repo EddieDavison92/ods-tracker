@@ -62,7 +62,9 @@ async function visit(context, [path, expected]) {
   })
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message.slice(0, 200)}`))
   try {
-    const res = await page.goto(BASE + path, { waitUntil: 'networkidle', timeout: 60_000 })
+    // 'load' plus a short settle: networkidle can hang on link prefetching.
+    const res = await page.goto(BASE + path, { waitUntil: 'load', timeout: 45_000 })
+    await page.waitForTimeout(1200)
     const status = res?.status() ?? 0
     const text = await page.evaluate(() => document.body.innerText)
     const problems = []
@@ -78,6 +80,7 @@ async function visit(context, [path, expected]) {
   } finally {
     await page.close()
     done++
+    if (done % 10 === 0) console.log(`  ${done} pages, ${failures.length} failures`)
   }
 }
 

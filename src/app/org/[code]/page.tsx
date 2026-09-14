@@ -263,28 +263,35 @@ export default async function OrgPage({ params, searchParams }: { params: Params
             </Fact>
             <Fact label="Last changed in ODS">{formatDate(org.lastChange)}</Fact>
           </dl>
-          <nav aria-label="Sections" className="-mb-px flex gap-1 overflow-x-auto">
-            {tabs.map((t) => (
-              <Link
-                key={t.key}
-                href={t.key === 'overview' ? base : `${base}?tab=${t.key}`}
-                aria-current={tab === t.key ? 'page' : undefined}
-                className={cn(
-                  'inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm transition',
-                  tab === t.key ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {t.label}
-                {t.count ? <span className="rounded-full bg-muted px-1.5 text-xs tabular">{formatNumber(t.count)}</span> : null}
-              </Link>
-            ))}
-          </nav>
+          {/* Scrolls sideways on narrow screens; the fade hints there is more. */}
+          <div className="relative -mx-4 sm:mx-0">
+            <nav
+              aria-label="Sections"
+              className="-mb-px flex gap-0.5 overflow-x-auto px-4 [scrollbar-width:none] sm:gap-1 sm:px-0 [&::-webkit-scrollbar]:hidden"
+            >
+              {tabs.map((t) => (
+                <Link
+                  key={t.key}
+                  href={t.key === 'overview' ? base : `${base}?tab=${t.key}`}
+                  aria-current={tab === t.key ? 'page' : undefined}
+                  className={cn(
+                    'inline-flex shrink-0 items-center gap-1.5 border-b-2 px-2.5 py-2.5 text-sm transition sm:px-3',
+                    tab === t.key ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  {t.label}
+                  {t.count ? <span className="hidden rounded-full bg-muted px-1.5 text-xs tabular sm:inline">{formatNumber(t.count)}</span> : null}
+                </Link>
+              ))}
+            </nav>
+            <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-card sm:hidden" />
+          </div>
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-4 py-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
         {tab === 'overview' ? (
-          <div className="grid gap-6 lg:grid-cols-3">
+          <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
             <div className="space-y-6 lg:col-span-2">
               {detail.parents.some((r) => r.opStart ?? r.legalStart) ? (
                 <Panel title="Relationship history" action={<Link href={`${base}?tab=relationships`} className="text-xs font-medium text-primary hover:underline">Table</Link>}>
@@ -312,7 +319,8 @@ export default async function OrgPage({ params, searchParams }: { params: Params
                 </Panel>
               ) : null}
             </div>
-            <div className="space-y-6">
+            {/* On phones, where the org sits comes before the history. */}
+            <div className="order-first space-y-6 lg:order-none">
               <Panel title="Where it sits">
                 <Hierarchy detail={detail} />
               </Panel>

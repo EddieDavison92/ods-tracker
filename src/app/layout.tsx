@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <SiteHeader scopes={scopes} />
         </Suspense>
         <main className="min-h-[70vh]">{children}</main>
-        <footer className="mt-16 border-t bg-card">
+        <footer className="mt-10 border-t bg-card">
           <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 text-sm text-muted-foreground sm:grid-cols-3">
             <div className="space-y-1">
               <p className="font-medium text-foreground">ODS Tracker</p>

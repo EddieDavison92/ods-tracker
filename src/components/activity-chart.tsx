@@ -23,16 +23,26 @@ const monthLabel = (m: string, withYear = false) => format(parseISO(`${m}-01`), 
 
 export function ActivityChart({ data, height = 200 }: { data: ActivityPoint[]; height?: number }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [width, setWidth] = useState(720)
+  // Unknown until measured: drawing at a guessed width would widen the page on phones.
+  const [width, setWidth] = useState<number | null>(null)
   const [hover, setHover] = useState<number | null>(null)
 
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    const ro = new ResizeObserver(([entry]) => setWidth(Math.max(280, entry.contentRect.width)))
+    const ro = new ResizeObserver(([entry]) => setWidth(Math.floor(entry.contentRect.width)))
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
+
+  if (width === null) {
+    return (
+      <div className="space-y-3">
+        <div className="h-4" />
+        <div ref={ref} className="w-full min-w-0" style={{ height }} aria-hidden />
+      </div>
+    )
+  }
 
   const totals = data.map((d) => d.opened + d.closed + d.changed)
   const { top, step } = niceMax(Math.max(0, ...totals))

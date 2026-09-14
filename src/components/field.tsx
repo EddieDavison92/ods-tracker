@@ -138,14 +138,19 @@ export function Segmented({
   label: string
 }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex rounded-lg border bg-card p-0.5 shadow-sm">
+    // Scrolls sideways rather than widening the page on narrow screens.
+    <div
+      role="group"
+      aria-label={label}
+      className="inline-flex max-w-full overflow-x-auto rounded-lg border bg-card p-0.5 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    >
       {options.map((o) => (
         <Link
           key={o.value}
           href={hrefFor(o.value)}
           aria-current={o.value === value ? 'true' : undefined}
           className={cn(
-            'rounded-md px-2.5 py-1 text-sm transition-colors',
+            'shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-sm transition-colors',
             o.value === value ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
           )}
         >

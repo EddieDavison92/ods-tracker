@@ -21,7 +21,8 @@ export function SiteHeader({ scopes }: { scopes: Scopes }) {
   const withScope = (href: string) => (scope && href !== '/areas' ? `${href}?scope=${encodeURIComponent(scope)}` : href)
 
   return (
-    <header className="sticky top-0 z-40 bg-header text-header-foreground shadow-[0_1px_0_rgba(255,255,255,0.06)]">
+    // Sticky only on large screens; on phones it would take a quarter of the viewport.
+    <header className="relative z-40 bg-header text-header-foreground shadow-[0_1px_0_rgba(255,255,255,0.06)] lg:sticky lg:top-0">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:gap-5">
         <Link href={withScope('/')} className="flex shrink-0 items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-inner">

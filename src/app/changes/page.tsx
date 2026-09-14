@@ -104,7 +104,7 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
         <div className="lg:col-span-2">
           <ChangeList
             grouped

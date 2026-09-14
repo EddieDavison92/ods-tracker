@@ -7,7 +7,7 @@ const ACRONYMS = new Set([
   'CT', 'IT', 'NW', 'NE', 'SW', 'SE', 'UHB', 'NHSBT', 'BUPA', 'HCRG', 'EMIS', 'TPP', 'SEL', 'NEL', 'NCL', 'NWL',
   'SWL', 'BOB', 'BLMK', 'BSW', 'LLR', 'PICU', 'CYP', 'LGBT', 'HIV', 'GUM', 'TB', 'RAF', 'MOD', 'DMS', 'IOW',
   'CHC', 'MSK', 'COPD', 'COVID', 'COVID-19', 'OT', 'SALT', 'PPG', 'AQP', 'CAS', 'NHS111', 'LSC', 'KMPT', 'SPA',
-  'UCC', 'WIC', 'PLC', 'CBT', 'EIP', 'ARRS', 'GMC', 'SEND', 'ECT',
+  'UCC', 'WIC', 'PLC', 'CBT', 'EIP', 'ARRS', 'GMC', 'SEND', 'ECT', 'HA', 'DHA', 'FHSA', 'AHA',
 ])
 const LOWER = new Set(['and', 'of', 'the', 'for', 'in', 'on', 'at', 'to', 'by', 'with', 'a', 'an', 'upon', 'de', 'la', 'le', 'du', 'or'])
 const MIXED: Record<string, string> = { DR: 'Dr', DRS: 'Drs', ST: 'St', MR: 'Mr', MRS: 'Mrs', MS: 'Ms', LTD: 'Ltd', MT: 'Mt' }

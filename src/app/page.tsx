@@ -140,7 +140,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </div>
         </section>
 
-        <div className="grid gap-6 lg:grid-cols-5">
+        <div className="grid gap-6 lg:grid-cols-5 [&>*]:min-w-0">
           <section className="lg:col-span-3">
             <div className="mb-3 flex items-end justify-between">
               <h2 className="text-xl font-semibold tracking-tight">Latest notable changes</h2>
