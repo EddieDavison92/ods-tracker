@@ -39,4 +39,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-.vercel
+# cloudflare
+.wrangler
+.dev.vars*
+worker/worker-configuration.d.ts
+
+# ODS release downloads and generated backfill SQL
+.cache/
+worker/.backfill*/

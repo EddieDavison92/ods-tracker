@@ -1,0 +1,25 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "ods-tracker-api",
+  "main": "src/index.ts",
+  "account_id": "e7ffabec5d1df79297886025881e4a03",
+  "compatibility_date": "2026-09-01",
+  "observability": { "enabled": true },
+  // ODS publishes changes daily at most; poll the ORD sync endpoint every 6 hours.
+  "triggers": { "crons": ["17 */6 * * *"] },
+  // Sync runs fetch hundreds of org records; allow up to 5 min CPU.
+  "limits": { "cpu_ms": 300000 },
+  "vars": {
+    "ORD_BASE": "https://directory.spineservices.nhs.uk/ORD/2-0-0",
+    // UI base URL, used for links in the RSS feed.
+    "APP_URL": "https://ods-tracker.vercel.app"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ods-tracker",
+      "database_id": "1f384187-f86d-4d44-bb77-558a205025db",
+      "migrations_dir": "./migrations"
+    }
+  ]
+}
