@@ -18,7 +18,7 @@
     {
       "binding": "DB",
       "database_name": "ods-tracker",
-      "database_id": "1f384187-f86d-4d44-bb77-558a205025db",
+      "database_id": "bf8cf70a-8798-46a2-85f4-1468dcd6d6df",
       "migrations_dir": "./migrations"
     }
   ]
