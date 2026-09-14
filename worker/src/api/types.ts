@@ -31,6 +31,7 @@ export interface SyncRunInfo {
   processed: number | null
   changed: number | null
   events: number | null
+  failed: number | null
   remaining: number | null
   status: string
   error: string | null

@@ -98,6 +98,7 @@ export async function meta(db: D1Database): Promise<Meta> {
       id: Number(r.id), startedAt: String(r.started_at), finishedAt: r.finished_at as string | null,
       trigger: String(r.trigger), since: r.since as string | null, listed: r.listed as number | null,
       processed: r.processed as number | null, changed: r.changed as number | null, events: r.events as number | null,
+      failed: r.failed as number | null,
       remaining: r.remaining as number | null, status: String(r.status), error: r.error as string | null,
     })),
   }
