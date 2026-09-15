@@ -1,0 +1,13 @@
+- main:
+  - paragraph
+- dialog "Search organisations":
+  - text: Search organisations
+  - combobox "Search organisations" [expanded]: F83004
+  - listbox "Suggestions":
+    - group "Organisations":
+      - option "Archway Medical Centre GP practice · London · N19 3NU F83004" [selected]:
+        - paragraph: Archway Medical Centre
+        - paragraph: GP practice · London · N19 3NU
+        - text: F83004
+    - option "See all results for “F83004”"
+  - text: Every ODS organisation type, open and closed. A full postcode also finds nearby organisations. ↑↓ move · Enter open · Esc close
