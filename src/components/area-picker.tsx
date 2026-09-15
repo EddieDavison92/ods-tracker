@@ -100,7 +100,7 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
           onClick={() => toggle(s.code)}
           aria-expanded={expanded.has(s.code)}
           aria-label={`${expanded.has(s.code) ? 'Collapse' : 'Expand'} ${displayName(s.name)}`}
-          className="flex h-8 w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+          className="flex h-8 w-7 items-center justify-center rounded text-muted-foreground hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40"
         >
           {expanded.has(s.code) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
         </button>
@@ -111,7 +111,7 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
         type="button"
         onClick={() => select(s.code)}
         className={cn(
-          'flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+          'flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40',
           current === s.code && 'bg-accent font-medium text-accent-foreground',
           !isLiveArea(s) && 'text-muted-foreground',
         )}
@@ -134,10 +134,10 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
           type="button"
           aria-label={`Area: ${label}. Change area`}
           className={cn(
-            'inline-flex h-9 max-w-[16rem] items-center gap-2 rounded-lg px-3 text-sm transition focus-visible:outline-none focus-visible:ring-2',
+            'inline-flex h-9 max-w-[16rem] items-center gap-2 rounded-lg px-3 text-sm transition focus-visible:outline-hidden focus-visible:ring-2',
             tone === 'dark'
               ? 'bg-white/10 text-white ring-1 ring-inset ring-white/15 hover:bg-white/15 focus-visible:ring-white/80'
-              : 'border bg-card shadow-sm hover:bg-accent focus-visible:ring-ring/40',
+              : 'border bg-card shadow-xs hover:bg-accent focus-visible:ring-ring/40',
           )}
         >
           <MapPin aria-hidden className="h-4 w-4 shrink-0 opacity-80" />
@@ -175,7 +175,7 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
                 }
               }}
               placeholder="e.g. Kent, 93C or Islington PCN"
-              className="h-9 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="h-9 flex-1 bg-transparent text-sm outline-hidden placeholder:text-muted-foreground"
             />
           </div>
           <div className="max-h-[60vh] overflow-y-auto">
@@ -193,7 +193,7 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
                     <button
                       type="button"
                       onClick={() => select(p.code)}
-                      className="flex min-h-8 min-w-0 flex-1 items-center rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+                      className="flex min-h-8 min-w-0 flex-1 items-center rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40"
                     >
                       <span className="truncate">{displayName(p.name)}</span>
                     </button>
@@ -213,7 +213,7 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
                   <button
                     type="button"
                     onClick={() => select(null)}
-                    className={cn('flex min-h-8 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40', !current && 'bg-accent font-medium')}
+                    className={cn('flex min-h-8 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40', !current && 'bg-accent font-medium')}
                   >
                     <span className="flex-1">All England</span>
                     {!current ? <Check className="h-3.5 w-3.5 text-primary" /> : null}

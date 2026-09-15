@@ -121,7 +121,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
                       <Link
                         key={g.key}
                         href={withScope(`/explore?group=${g.key}`)}
-                        className="group flex items-start gap-3 rounded-xl border bg-card p-3 shadow-sm transition hover:border-primary/40 hover:shadow-md"
+                        className="group flex items-start gap-3 rounded-xl border bg-card p-3 shadow-xs transition hover:border-primary/40 hover:shadow-md"
                       >
                         <GroupIcon group={g.key} size="md" />
                         <div className="min-w-0 flex-1">
@@ -140,7 +140,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </div>
         </section>
 
-        <div className="grid gap-6 lg:grid-cols-5 [&>*]:min-w-0">
+        <div className="grid gap-6 lg:grid-cols-5 *:min-w-0">
           <section className="lg:col-span-3">
             <div className="mb-3 flex items-end justify-between">
               <h2 className="text-xl font-semibold tracking-tight">Latest notable changes</h2>

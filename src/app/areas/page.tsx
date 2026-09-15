@@ -68,7 +68,7 @@ export default async function AreasPage() {
                 {icbs.map((i) => {
                   const sub = scopes.sicbls.filter((s) => s.parent === i.code)
                   return (
-                    <div key={i.code} className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-sm">
+                    <div key={i.code} className="flex flex-col gap-3 rounded-xl border bg-card p-4 shadow-xs">
                       <div className="flex items-start justify-between gap-2">
                         <Link href={`/org/${i.code}`} className="font-medium leading-snug hover:text-primary hover:underline">{short(i.name)}</Link>
                         <span className="font-mono text-xs text-muted-foreground">{i.code}</span>
@@ -100,7 +100,7 @@ export default async function AreasPage() {
           )
         })}
         {closed.length ? (
-          <details className="rounded-xl border bg-card p-4 shadow-sm">
+          <details className="rounded-xl border bg-card p-4 shadow-xs">
             <summary className="cursor-pointer text-sm font-medium">Former ICBs ({closed.length})</summary>
             <ul className="mt-3 grid gap-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
               {closed.map((i) => (

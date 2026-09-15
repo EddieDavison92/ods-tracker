@@ -50,7 +50,7 @@ function Fact({ label, children, icon }: { label: string; children: ReactNode; i
   return (
     <div className="min-w-0">
       <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">{icon}{label}</dt>
-      <dd className="mt-0.5 break-words text-sm">{children}</dd>
+      <dd className="mt-0.5 wrap-break-word text-sm">{children}</dd>
     </div>
   )
 }
@@ -195,7 +195,7 @@ async function Members({ detail, sp }: { detail: OrgDetail; sp: Query }) {
           {status === 'current' ? ' Try Past or All.' : ''}
         </EmptyState>
       ) : (
-        <ul className="divide-y rounded-xl border bg-card shadow-sm">
+        <ul className="divide-y rounded-xl border bg-card shadow-xs">
           {list.items.map((c) => (
             <li key={c.code} className="flex items-start gap-3 px-4 py-3">
               <GroupIcon group={c.group} className="mt-0.5" />
@@ -275,7 +275,7 @@ export default async function OrgPage({ params, searchParams }: { params: Params
                 {roleName ? <span>· {roleName}</span> : null}
                 <a
                   href={rss}
-                  className="inline-flex min-h-7 items-center gap-1.5 rounded-md border bg-card px-2 text-sm shadow-sm hover:bg-accent"
+                  className="inline-flex min-h-7 items-center gap-1.5 rounded-md border bg-card px-2 text-sm shadow-xs hover:bg-accent"
                   title="Subscribe in Outlook, Feedly or any RSS reader to hear about changes"
                 >
                   <Rss aria-hidden className="h-3.5 w-3.5 text-[#eb6834]" /> Follow changes
@@ -327,7 +327,7 @@ export default async function OrgPage({ params, searchParams }: { params: Params
           <div className="relative -mx-4 sm:mx-0">
             <nav
               aria-label="Sections"
-              className="-mb-px flex gap-0.5 overflow-x-auto px-4 [scrollbar-width:none] sm:gap-1 sm:px-0 [&::-webkit-scrollbar]:hidden"
+              className="-mb-px flex gap-0.5 overflow-x-auto px-4 scrollbar-none sm:gap-1 sm:px-0 [&::-webkit-scrollbar]:hidden"
             >
               {tabs.map((t) => (
                 <Link
@@ -351,14 +351,14 @@ export default async function OrgPage({ params, searchParams }: { params: Params
                 </Link>
               ))}
             </nav>
-            <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-card sm:hidden" />
+            <div aria-hidden className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-linear-to-l from-card sm:hidden" />
           </div>
         </div>
       </header>
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:py-8">
         {tab === 'overview' ? (
-          <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
+          <div className="grid gap-6 lg:grid-cols-3 *:min-w-0">
             <div className="space-y-6 lg:col-span-2">
               {detail.parents.some((r) => r.opStart ?? r.legalStart) ? (
                 <Panel title="Relationship history" action={<Link href={`${base}?tab=relationships`} className="text-xs font-medium text-primary hover:underline">Table</Link>}>
@@ -387,7 +387,7 @@ export default async function OrgPage({ params, searchParams }: { params: Params
               ) : null}
             </div>
             {/* On phones, where the org sits comes before the history. */}
-            <div className="order-first space-y-6 lg:order-none">
+            <div className="order-first space-y-6 lg:order-0">
               <Panel title="Where it sits">
                 <Hierarchy detail={detail} />
               </Panel>
@@ -499,7 +499,7 @@ export default async function OrgPage({ params, searchParams }: { params: Params
         ) : null}
 
         {tab === 'details' ? (
-          <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
+          <div className="grid gap-6 lg:grid-cols-3 *:min-w-0">
             <Panel title="Roles" className="lg:col-span-2">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">

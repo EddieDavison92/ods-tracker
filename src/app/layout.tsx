@@ -30,7 +30,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <Suspense fallback={<div className="h-16 bg-header" />}>
           <SiteHeader scopes={scopes} />
         </Suspense>
-        <main id="main" tabIndex={-1} className="min-h-[70vh] focus:outline-none">{children}</main>
+        <main id="main" tabIndex={-1} className="min-h-[70vh] focus:outline-hidden">{children}</main>
         <RouteFocus />
         <footer className="mt-10 border-t bg-card">
           <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 text-sm text-muted-foreground sm:grid-cols-3">

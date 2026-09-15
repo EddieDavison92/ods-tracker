@@ -16,7 +16,7 @@ const NAV = [
   { href: '/docs', label: 'API' },
 ]
 
-const focusRing = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80'
+const focusRing = 'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/80'
 
 export function SiteHeader({ scopes }: { scopes: Scopes }) {
   const pathname = usePathname()

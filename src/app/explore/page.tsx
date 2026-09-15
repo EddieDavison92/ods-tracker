@@ -29,10 +29,11 @@ function Context({ row }: { row: OrgListRow }) {
   if (area && row.group !== 'commissioner') bits.push(<span key="a">{displayName(area.name)}</span>)
   if (!bits.length) return null
   return (
-    <p className="flex min-w-0 gap-x-2 truncate text-xs text-muted-foreground">
+    // Inline text, so a long line truncates once at the end rather than per item.
+    <p className="truncate text-xs text-muted-foreground">
       {bits.map((b, i) => (
-        <span key={i} className="inline-flex min-w-0 items-center gap-2 truncate">
-          {i > 0 ? <span aria-hidden>·</span> : null}
+        <span key={i}>
+          {i > 0 ? <span aria-hidden> · </span> : null}
           {b}
         </span>
       ))}
@@ -127,14 +128,14 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             : `${formatNumber(list.total)} ${statusWord}${def ? lowerLabel(def.label) : 'organisations'}${scope ? ` in ${displayName(place)}` : ' in England'}.`
         }
       >
-        <a href={asAt ? apiUrl('/api/export/practices.csv', { scope, asAt }) : csv} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-sm hover:bg-accent">
+        <a href={asAt ? apiUrl('/api/export/practices.csv', { scope, asAt }) : csv} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-xs hover:bg-accent">
           <Download aria-hidden className="h-4 w-4" /> CSV
         </a>
       </PageHeading>
 
       <div className="grid gap-6 lg:grid-cols-[16rem_1fr]">
         {/* Below lg the type list follows the results, so the first thing on a phone is the answer. */}
-        <aside className="order-last space-y-5 lg:order-none">
+        <aside className="order-last space-y-5 lg:order-0">
           <nav aria-label="Organisation type">
             <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</p>
             {facets ? (
@@ -214,7 +215,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
                 {q ? <input type="hidden" name="q" value={q} /> : null}
                 <label htmlFor="asAt" className="text-xs text-muted-foreground">As at</label>
                 <input id="asAt" type="date" name="asAt" defaultValue={asAt} min="2013-04-01" className={cn(fieldClass, 'h-8 px-2')} />
-                <button type="submit" className="h-8 rounded-lg bg-primary px-3 text-sm text-primary-foreground shadow-sm hover:bg-primary/90">Apply</button>
+                <button type="submit" className="h-8 rounded-lg bg-primary px-3 text-sm text-primary-foreground shadow-xs hover:bg-primary/90">Apply</button>
                 {asAt ? <Link href={href({ asAt: null })} className="text-xs text-primary hover:underline">Today</Link> : null}
               </form>
             ) : null}
@@ -225,7 +226,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
               {q ? `Nothing matches “${q}”. Check the spelling, try fewer words, or search all statuses.` : 'No organisations match these filters.'}
             </EmptyState>
           ) : (
-            <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-sm">
+            <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-xs">
               {list.kind === 'asAt'
                 ? list.items.map((row) => <PracticeAsAtRow key={row.code} row={row} />)
                 : list.items.map((row) => <OrgRow key={row.code} row={row} />)}

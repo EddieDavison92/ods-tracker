@@ -71,10 +71,10 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
         title="Changes"
         description={`What changed in ODS${scope ? ` in ${place}` : ' across England'}. History comes from monthly NHS releases until August 2026, then from the ODS API every 6 hours.`}
       >
-        <a href={apiUrl('/api/export/changes.csv', filters)} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-sm hover:bg-accent">
+        <a href={apiUrl('/api/export/changes.csv', filters)} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-xs hover:bg-accent">
           <Download aria-hidden className="h-4 w-4" /> CSV
         </a>
-        <a href={apiUrl('/api/changes.rss', filters)} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-sm hover:bg-accent">
+        <a href={apiUrl('/api/changes.rss', filters)} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-xs hover:bg-accent">
           <Rss aria-hidden className="h-4 w-4 text-[#eb6834]" /> Follow (RSS)
         </a>
       </PageHeading>
@@ -122,7 +122,7 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
         </p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3 [&>*]:min-w-0">
+      <div className="grid gap-6 lg:grid-cols-3 *:min-w-0">
         <section className="lg:col-span-2" aria-labelledby="feed-heading">
           <h2 id="feed-heading" className="sr-only">Latest changes</h2>
           <ChangeList
@@ -133,7 +133,7 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
           />
           {feed.nextCursor ? (
             <div className="mt-6 text-center">
-              <Link href={pageHref('/changes', sp, { cursor: feed.nextCursor, before: null })} className="inline-flex h-9 items-center rounded-lg border bg-card px-4 text-sm font-medium shadow-sm hover:bg-accent">
+              <Link href={pageHref('/changes', sp, { cursor: feed.nextCursor, before: null })} className="inline-flex h-9 items-center rounded-lg border bg-card px-4 text-sm font-medium shadow-xs hover:bg-accent">
                 Older changes
               </Link>
             </div>

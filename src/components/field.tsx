@@ -5,13 +5,13 @@ import { cn } from '@/lib/utils'
 import { pageHref, type Query } from '@/lib/href'
 
 export const fieldClass = cn(
-  'h-9 rounded-lg border border-input bg-card px-3 text-sm shadow-sm',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:border-ring',
+  'h-9 rounded-lg border border-input bg-card px-3 text-sm shadow-xs',
+  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:border-ring',
 )
 
 export function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: ReactNode }) {
   return (
-    <div className="flex min-w-[8rem] flex-col gap-1.5">
+    <div className="flex min-w-32 flex-col gap-1.5">
       <label htmlFor={htmlFor} className="text-xs font-medium text-muted-foreground">
         {label}
       </label>
@@ -57,7 +57,7 @@ export function Panel({
   bodyClassName?: string
 }) {
   return (
-    <section className={cn('rounded-xl border bg-card shadow-sm', className)}>
+    <section className={cn('rounded-xl border bg-card shadow-xs', className)}>
       {title ? (
         <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
           <h2 className="text-sm font-semibold">{title}</h2>
@@ -95,7 +95,7 @@ export function Pagination({
   const to = Math.min(offset + limit, total)
   const prev = offset > 0 ? Math.max(0, offset - limit) : null
   const next = offset + limit < total ? offset + limit : null
-  const btn = 'inline-flex h-8 items-center gap-1 rounded-lg border bg-card px-2.5 text-sm shadow-sm'
+  const btn = 'inline-flex h-8 items-center gap-1 rounded-lg border bg-card px-2.5 text-sm shadow-xs'
   return (
     <nav className="mt-4 flex flex-wrap items-center justify-between gap-2 text-sm" aria-label="Pagination">
       <p className="tabular text-muted-foreground">
@@ -135,7 +135,7 @@ export function Segmented({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex max-w-full overflow-x-auto rounded-lg border bg-card p-0.5 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="inline-flex max-w-full overflow-x-auto rounded-lg border bg-card p-0.5 shadow-xs scrollbar-none [&::-webkit-scrollbar]:hidden"
     >
       {options.map((o) => (
         <Link
@@ -144,7 +144,7 @@ export function Segmented({
           aria-current={o.value === value ? 'true' : undefined}
           className={cn(
             'shrink-0 whitespace-nowrap rounded-md px-2.5 py-1 text-sm transition-colors',
-            o.value === value ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            o.value === value ? 'bg-primary text-primary-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground',
           )}
         >
           {o.label}

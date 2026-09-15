@@ -133,7 +133,7 @@ export function ChangeList({
   if (!grouped) {
     const list = by === 'effective' ? [...items].sort(newestEffectiveFirst) : items
     return (
-      <ul className={cn('divide-y rounded-xl border bg-card shadow-sm', className)}>
+      <ul className={cn('divide-y rounded-xl border bg-card shadow-xs', className)}>
         {list.map((item) => (
           <ChangeRow key={item.id} item={item} showDate hideOrg={hideOrg} by={by} />
         ))}
@@ -148,7 +148,7 @@ export function ChangeList({
             {group.label}
             <span className="rounded-full bg-muted px-1.5 py-px font-medium normal-case tracking-normal tabular">{group.items.length}</span>
           </h3>
-          <ul className="divide-y rounded-xl border bg-card shadow-sm">
+          <ul className="divide-y rounded-xl border bg-card shadow-xs">
             {group.items.map((item) => (
               <ChangeRow key={item.id} item={item} hideOrg={hideOrg} by={by} />
             ))}

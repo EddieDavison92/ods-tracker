@@ -23,7 +23,7 @@ const ENDPOINTS = [
   ['/api/export/practices.csv?asAt=', 'GP practice hierarchy, current or on a date'],
 ]
 
-const button = 'inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90'
+const button = 'inline-flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-xs hover:bg-primary/90'
 
 export default async function ExportPage({ searchParams }: { searchParams: Promise<Query> }) {
   const scope = codeParam((await searchParams).scope)

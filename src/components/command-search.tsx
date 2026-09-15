@@ -81,7 +81,7 @@ export function CommandSearch({ variant = 'header' }: { variant?: 'header' | 'he
         ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-14 w-full items-center gap-3 rounded-2xl border border-white/15 bg-white px-5 text-left text-base text-muted-foreground shadow-xl shadow-black/20 transition hover:ring-4 hover:ring-white/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-white/60"
+        className="flex h-14 w-full items-center gap-3 rounded-2xl border border-white/15 bg-white px-5 text-left text-base text-muted-foreground shadow-xl shadow-black/20 transition hover:ring-4 hover:ring-white/20 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-white/60"
       >
         <Search aria-hidden className="h-5 w-5 shrink-0 text-primary" />
         <span className="flex-1 truncate">
@@ -96,7 +96,7 @@ export function CommandSearch({ variant = 'header' }: { variant?: 'header' | 'he
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Search organisations"
-        className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-left text-sm text-white/70 ring-1 ring-inset ring-white/15 transition hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        className="flex h-9 w-full items-center gap-2 rounded-lg bg-white/10 px-3 text-left text-sm text-white/70 ring-1 ring-inset ring-white/15 transition hover:bg-white/15 hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white/80"
       >
         <Search aria-hidden className="h-4 w-4 shrink-0" />
         <span className="flex-1 truncate">Search</span>
@@ -132,7 +132,7 @@ export function CommandSearch({ variant = 'header' }: { variant?: 'header' | 'he
               }
             }}
             placeholder="Name, ODS code or postcode"
-            className="h-12 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+            className="h-12 flex-1 bg-transparent text-base outline-hidden placeholder:text-muted-foreground"
           />
           {loading ? <Loader2 aria-hidden className="h-4 w-4 animate-spin text-muted-foreground" /> : null}
         </div>
@@ -158,7 +158,7 @@ export function CommandSearch({ variant = 'header' }: { variant?: 'header' | 'he
             <Command.Empty className="px-2 py-6 text-center text-sm text-muted-foreground">No organisations match “{q}”.</Command.Empty>
           ) : null}
           {shown.length > 0 ? (
-            <Command.Group heading="Organisations" className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground">
+            <Command.Group heading="Organisations" className="**:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1.5 **:[[cmdk-group-heading]]:text-xs **:[[cmdk-group-heading]]:font-medium **:[[cmdk-group-heading]]:text-muted-foreground">
               {shown.map((s) => (
                 <Command.Item
                   key={s.code}

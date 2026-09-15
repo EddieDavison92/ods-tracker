@@ -13,7 +13,7 @@ export function CopyButton({ value, label = 'Copy code' }: { value: string; labe
         setDone(true)
         setTimeout(() => setDone(false), 1500)
       }}
-      className="inline-flex h-7 items-center gap-1 rounded-md border bg-card px-2 font-mono text-sm shadow-sm hover:bg-accent"
+      className="inline-flex h-7 items-center gap-1 rounded-md border bg-card px-2 font-mono text-sm shadow-xs hover:bg-accent"
       aria-label={`${label} ${value}`}
     >
       {value}

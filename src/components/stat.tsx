@@ -20,7 +20,7 @@ export function StatTile({
   const body = (
     <div
       className={cn(
-        'flex h-full flex-col gap-1 rounded-xl border bg-card p-4 shadow-sm transition-colors',
+        'flex h-full flex-col gap-1 rounded-xl border bg-card p-4 shadow-xs transition-colors',
         href && 'hover:border-primary/40 hover:bg-accent/40',
         className,
       )}
@@ -34,7 +34,7 @@ export function StatTile({
     </div>
   )
   return href ? (
-    <Link href={href} className="block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 rounded-xl">
+    <Link href={href} className="block h-full focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40 rounded-xl">
       {body}
     </Link>
   ) : (

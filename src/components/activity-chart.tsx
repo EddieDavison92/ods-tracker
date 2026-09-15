@@ -74,7 +74,7 @@ function Chart({ data, height, width }: { data: ActivityPoint[]; height: number;
           : ''}
       </p>
       <div
-        className="relative rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2"
+        className="relative rounded-md focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:ring-offset-2"
         tabIndex={0}
         role="img"
         aria-label="Monthly changes chart. Use left and right arrow keys to read each month, or open the table below."
