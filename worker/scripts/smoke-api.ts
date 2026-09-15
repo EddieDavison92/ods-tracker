@@ -67,6 +67,14 @@ const checks: Check[] = [
   { path: '/api/orgs/Z9B2Z/children?rel=RE8&group=trust', status: 200, test: (b) => (b.total >= 10 ? null : `only ${b.total} partner trusts`) },
   { path: '/api/orgs/Z9B2Z/children?rel=bad', status: 400 },
   { path: '/api/changes?related=Z9B2Z&date=effective&limit=5', status: 200, test: (b) => (b.items.length === 5 && b.nextCursor ? null : 'expected a paged related feed') },
+  {
+    path: '/api/changes?kinds=rel_added,rel_ended&field=RE8&relatedGroup=pcn&date=effective&limit=200', status: 200,
+    test: (b) => {
+      const other = b.items.filter((i: Body) => !/^(Joined|Left) PCN/.test(i.summary))
+      return b.items.length && !other.length ? null : `${other.length} of ${b.items.length} are not PCN joins/leaves`
+    },
+  },
+  { path: '/api/changes?relatedGroup=nope', status: 400 },
   { path: '/api/changes?org=F83004&date=effective', status: 200, test: (b) => (b.items.every((i: Body) => i.org.code === 'F83004') ? null : 'org filter leaked') },
   { path: '/api/orgs/Z9B2Z', status: 200, test: (b) => (b.eventCounts?.involving > 1000 ? null : `involving count ${b.eventCounts?.involving}`) },
   { path: '/api/orgs/Z9B2Z', status: 200, test: (b) => (b.childRels?.some((r: Body) => r.type.code === 'RE8') ? null : 'no RE8 breakdown') },

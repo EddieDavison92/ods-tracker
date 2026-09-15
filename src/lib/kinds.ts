@@ -71,11 +71,13 @@ export const KIND_ICONS: Record<ChangeKind, LucideIcon> = {
   succ_removed: GitMerge,
 }
 
-// Presets for the change feed filter. `field` narrows to one relationship type (RE8 = PCN partner).
-export const KIND_PRESETS: { key: string; label: string; kinds: ChangeKind[] | null; field?: string }[] = [
+// Presets for the change feed filter. `field` narrows to one relationship type and `relatedGroup` to
+// the type of organisation on the other side: RE8 "partner of" also covers councils and trusts
+// partnering ICBs, so PCN joins and leaves need both.
+export const KIND_PRESETS: { key: string; label: string; kinds: ChangeKind[] | null; field?: string; relatedGroup?: string }[] = [
   { key: 'notable', label: 'Notable', kinds: ['created', 'closed', 'reopened', 'name', 'address', 'rel_added', 'rel_ended', 'succ_added'] },
   { key: 'lifecycle', label: 'Openings and closures', kinds: ['created', 'closed', 'reopened', 'removed'] },
-  { key: 'pcn', label: 'PCN joins and leaves', kinds: ['rel_added', 'rel_ended'], field: 'RE8' },
+  { key: 'pcn', label: 'PCN joins and leaves', kinds: ['rel_added', 'rel_ended'], field: 'RE8', relatedGroup: 'pcn' },
   { key: 'identity', label: 'Names and addresses', kinds: ['name', 'address', 'contact'] },
   { key: 'membership', label: 'All relationships', kinds: ['rel_added', 'rel_ended', 'rel_changed', 'succ_added'] },
   { key: 'all', label: 'Everything', kinds: null },
@@ -84,3 +86,4 @@ export const KIND_PRESETS: { key: string; label: string; kinds: ChangeKind[] | n
 const preset = (key: string | undefined) => KIND_PRESETS.find((p) => p.key === key) ?? KIND_PRESETS[0]
 export const presetKinds = (key: string | undefined) => preset(key).kinds
 export const presetField = (key: string | undefined) => preset(key).field
+export const presetRelatedGroup = (key: string | undefined) => preset(key).relatedGroup

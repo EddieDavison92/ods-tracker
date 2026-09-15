@@ -201,11 +201,17 @@ async function cachedRoute(req: Request, env: Env, ctx: ExecutionContext): Promi
   if (hit) {
     const res = new Response(hit.body, hit)
     res.headers.set('X-Edge-Cache', 'HIT')
+    // Cloudflare returns cached copies with the zone's browser TTL (4 hours); restore the route's own.
+    const origin = res.headers.get('X-Origin-Cache-Control')
+    if (origin) res.headers.set('Cache-Control', origin)
+    res.headers.delete('X-Origin-Cache-Control')
     return res
   }
   const res = await route(req, env, ctx)
   if (res.ok && /max-age=[1-9]/.test(res.headers.get('Cache-Control') ?? '')) {
-    ctx.waitUntil(cache.put(key, res.clone()).catch(() => undefined))
+    const stored = new Response(res.clone().body, res)
+    stored.headers.set('X-Origin-Cache-Control', res.headers.get('Cache-Control') ?? '')
+    ctx.waitUntil(cache.put(key, stored).catch(() => undefined))
   }
   return res
 }

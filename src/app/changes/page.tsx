@@ -8,7 +8,7 @@ import { apiUrl, fetchActivity, fetchChanges, fetchScopes, optional } from '@/li
 import { daysAgoIso, formatNumber } from '@/lib/format'
 import { groupDef } from '@/lib/groups'
 import { firstParam, pageHref, type Query } from '@/lib/href'
-import { KIND_PRESETS, presetField, presetKinds } from '@/lib/kinds'
+import { KIND_PRESETS, presetField, presetKinds, presetRelatedGroup } from '@/lib/kinds'
 import { codeParam, groupsParam, oneOf } from '@/lib/params'
 import { displayName, lowerLabel } from '@/lib/names'
 import { EMPTY_SCOPES, scopeLabel } from '@/lib/scopes'
@@ -47,14 +47,15 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
   const cursor = /^\d{4}-\d{2}-\d{2}\|\d{1,15}$/.test(cursorRaw) ? cursorRaw : undefined
   const kinds = presetKinds(preset)?.join(',')
   const field = presetField(preset)
+  const relatedGroup = presetRelatedGroup(preset)
   const since = period.days ? daysAgoIso(period.days) : undefined
   const date = basis === 'effective' ? 'effective' : undefined
-  const filters = { scope, group, kinds, field, since, date }
+  const filters = { scope, group, kinds, field, relatedGroup, since, date }
 
   // Every section degrades on its own, so a busy database shows a message rather than an error page.
   const [feed, activity, scopes] = await Promise.all([
     optional(fetchChanges({ ...filters, cursor, limit: 60 })),
-    optional(fetchActivity({ scope, group, kinds, field, date, ...period.chart })),
+    optional(fetchActivity({ scope, group, kinds, field, relatedGroup, date, ...period.chart })),
     optional(fetchScopes()).then((s) => s ?? EMPTY_SCOPES),
   ])
   const place = displayName(scopeLabel(scopes, scope))
