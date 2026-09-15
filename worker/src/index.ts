@@ -192,7 +192,12 @@ async function cachedRoute(req: Request, env: Env, ctx: ExecutionContext): Promi
   const url = new URL(req.url)
   if (!edgeCacheable(req, url)) return route(req, env, ctx)
   const cache = caches.default
-  const hit = await cache.match(req).catch(() => undefined)
+  // Keyed by Worker version: after a deploy, data centres stop serving the old version's responses at once
+  // (otherwise up to max-age later, and the site could re-cache an old response for hours).
+  const keyUrl = new URL(url)
+  keyUrl.searchParams.set('__v', env.CF_VERSION_METADATA?.id ?? 'dev')
+  const key = new Request(keyUrl, { method: 'GET' })
+  const hit = await cache.match(key).catch(() => undefined)
   if (hit) {
     const res = new Response(hit.body, hit)
     res.headers.set('X-Edge-Cache', 'HIT')
@@ -200,7 +205,7 @@ async function cachedRoute(req: Request, env: Env, ctx: ExecutionContext): Promi
   }
   const res = await route(req, env, ctx)
   if (res.ok && /max-age=[1-9]/.test(res.headers.get('Cache-Control') ?? '')) {
-    ctx.waitUntil(cache.put(req, res.clone()).catch(() => undefined))
+    ctx.waitUntil(cache.put(key, res.clone()).catch(() => undefined))
   }
   return res
 }

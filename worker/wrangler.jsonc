@@ -8,6 +8,8 @@
   // Public API at api.ods-tracker.org; the workers.dev address stays on for existing links.
   "routes": [{ "pattern": "api.ods-tracker.org", "custom_domain": true }],
   "workers_dev": true,
+  // The deployed version's id keys the edge cache, so a deploy never serves responses cached by the previous version.
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   // ODS publishes changes daily at most; poll the ORD sync endpoint every 6 hours.
   "triggers": { "crons": ["17 */6 * * *"] },
   // Sync runs fetch hundreds of org records; allow up to 5 min CPU.
