@@ -65,6 +65,19 @@ npm run spot-check
 The sync resumes from the last release's publication date. ORD only serves changes from the last
 185 days, so if the sync stops for longer than that, rebuild from TRUD.
 
+## QA
+
+Live checks hit the public API and ORD; they need no Cloudflare credentials. `spot-check` does
+(D1 via wrangler).
+
+```bash
+npm run qa:weekly       # Monday checkup: sync health, ORD drift, samples
+npm run qa:weekly:full  # weekly + full API contract smoke
+npm run qa:api          # API contract smoke
+npm run qa:crawl        # Playwright crawl of the site
+cd worker && npm run spot-check   # D1 vs epraccur/ORD
+```
+
 ## API
 
 Base URL: `https://api.ods-tracker.org` (also `https://ods-tracker-api.eddiefox-davison.workers.dev`). Site: `https://ods-tracker.org`. Response types: [`worker/src/api/types.ts`](worker/src/api/types.ts).
