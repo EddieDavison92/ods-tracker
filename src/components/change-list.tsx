@@ -46,7 +46,9 @@ function Detail({ item }: { item: ChangeItem }) {
   if (item.kind === 'name' && item.oldValue && item.newValue) {
     return (
       <span>
-        Renamed from <span className="text-muted-foreground line-through decoration-muted-foreground/50">{displayName(item.oldValue)}</span>
+        {/* Both names, so a series of renames reads as a chain. */}
+        Renamed from <span className="text-muted-foreground line-through decoration-muted-foreground/50">{displayName(item.oldValue)}</span>{' '}
+        to <span className="font-medium">{displayName(item.newValue)}</span>
       </span>
     )
   }
