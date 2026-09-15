@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --test-scheduled",
-    "deploy": "wrangler deploy",
+    "deploy": "wrangler deploy && node scripts/revalidate-site.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p scripts",
     "test": "node --test test/*.test.ts",
     "cf-typegen": "wrangler types",

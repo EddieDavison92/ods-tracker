@@ -168,8 +168,10 @@ const chip = (on: boolean) =>
 async function Members({ detail, sp }: { detail: OrgDetail; sp: Query }) {
   const group = groupParam(sp.group)
   const status = oneOf(sp.status, ['current', 'past', 'all'] as const, 'current')
+  // Absent in data cached before the API added it; treat as no breakdown rather than fail.
+  const childRels = detail.childRels ?? []
   const relRaw = firstParam(sp.rel)?.toUpperCase()
-  const rel = relRaw && detail.childRels.some((r) => r.type.code === relRaw) ? relRaw : undefined
+  const rel = relRaw && childRels.some((r) => r.type.code === relRaw) ? relRaw : undefined
   const offset = offsetParam(sp.offset)
   const list = await optional(fetchChildren(detail.org.code, { group, rel, status, limit: 50, offset }))
   if (!list) return <EmptyState>Members could not be loaded just now. Refresh to try again.</EmptyState>
@@ -179,10 +181,10 @@ async function Members({ detail, sp }: { detail: OrgDetail; sp: Query }) {
 
   // Chip counts follow the status toggle and the other filter.
   const byStatus = (c: { active: number; total: number }) => (status === 'current' ? c.active : status === 'past' ? c.total - c.active : c.total)
-  const relRows = (type?: string, g?: string) => detail.childRels.filter((r) => (!type || r.type.code === type) && (!g || r.group === g))
+  const relRows = (type?: string, g?: string) => childRels.filter((r) => (!type || r.type.code === type) && (!g || r.group === g))
   const sum = (rows: { active: number; total: number }[]) => rows.reduce((a, r) => a + byStatus(r), 0)
   const groupCount = (g?: string) => (rel ? sum(relRows(rel, g)) : sum(detail.childGroups.filter((c) => !g || c.group === g)))
-  const relTypes = [...new Map(detail.childRels.map((r) => [r.type.code, r.type])).values()]
+  const relTypes = [...new Map(childRels.map((r) => [r.type.code, r.type])).values()]
     .map((t) => ({ ...t, count: sum(relRows(t.code, group)) }))
     .filter((t) => t.count > 0 || t.code === rel)
     .sort((a, b) => b.count - a.count)
