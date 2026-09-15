@@ -10,6 +10,8 @@
     "lint": "eslint .",
     "test": "node --test tests/*.test.ts",
     "qa:api": "node worker/scripts/smoke-api.ts",
+    "qa:weekly": "node worker/scripts/weekly-check.ts",
+    "qa:weekly:full": "node worker/scripts/weekly-check.ts --smoke",
     "qa:crawl": "node scripts/qa-crawl.mjs"
   },
   "dependencies": {
