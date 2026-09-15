@@ -117,7 +117,7 @@ export default function DocsPage() {
             {ENDPOINTS.map((e) => (
               <li key={e.path} id={e.path.replace(/[^a-z0-9]+/gi, '-')} className="space-y-2 p-4">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <a href={e.path.includes('{') ? undefined : `${API_BASE}${e.path}`} className="font-mono text-sm font-semibold text-primary underline-offset-2 hover:underline">
+                  <a rel="nofollow" href={e.path.includes('{') ? undefined : `${API_BASE}${e.path}`} className="font-mono text-sm font-semibold text-primary underline-offset-2 hover:underline">
                     {e.path}
                   </a>
                   <span className="text-xs text-muted-foreground">Cached {e.cache}</span>

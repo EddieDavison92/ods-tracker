@@ -100,6 +100,9 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
         docs: `${env.APP_URL}/docs`,
         endpoints: Object.keys(ALLOWED_ENDPOINTS),
       }))
+    case '/robots.txt':
+      // The API is for people and programs, not crawlers (a full CSV export reads every organisation).
+      return new Response('User-agent: *\nDisallow: /\n', { headers: { ...cacheControl(86_400), 'Content-Type': 'text/plain' } })
     case '/api/meta':
       return respond(jsonPayload(await meta(db), 60))
     case '/api/scopes':

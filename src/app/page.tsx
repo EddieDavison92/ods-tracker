@@ -7,7 +7,8 @@ import { EmptyState, Panel } from '@/components/field'
 import { GroupIcon } from '@/components/group-badge'
 import { StatTile } from '@/components/stat'
 import { fetchActivity, fetchChanges, fetchFacets, fetchMeta, fetchScopes, optional } from '@/lib/api'
-import { formatDate, formatMonth, formatNumber } from '@/lib/format'
+import { formatDate, formatMonth, formatNumber, formatRelative } from '@/lib/format'
+import { isStale } from '@/lib/freshness'
 import { FAMILY_LABELS, FAMILY_ORDER, GROUPS, type GroupKey } from '@/lib/groups'
 import { type Query } from '@/lib/href'
 import { presetKinds } from '@/lib/kinds'
@@ -43,6 +44,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   // Latest month with any data (the current month may not have synced yet).
   const lastMonth = [...months].reverse().find((m) => m.opened + m.closed + m.changed > 0)
   const recent = months.slice(-3).reduce((a, m) => a + m.opened + m.closed + m.changed, 0)
+  const stale = isStale(meta?.lastSyncAt)
 
   return (
     <>
@@ -58,8 +60,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
         <div className="relative mx-auto max-w-7xl px-4 pb-14 pt-12 sm:pt-16">
           {meta ? (
             <p className="mb-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white/80 ring-1 ring-inset ring-white/15">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-              Data up to {meta.lastSyncDate ? formatDate(meta.lastSyncDate) : '—'} · history since{' '}
+              <span className={`h-1.5 w-1.5 rounded-full ${stale ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+              {stale ? 'Last updated' : 'Updated'} {formatRelative(meta.lastSyncAt) ?? 'at an unknown time'}
+              {stale ? ' (sync may be failing)' : ''} · history since{' '}
               {meta.historyFrom ? formatDate(meta.historyFrom) : '2018'}
             </p>
           ) : null}

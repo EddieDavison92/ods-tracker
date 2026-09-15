@@ -128,7 +128,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
             : `${formatNumber(list.total)} ${statusWord}${def ? lowerLabel(def.label) : 'organisations'}${scope ? ` in ${displayName(place)}` : ' in England'}.`
         }
       >
-        <a href={asAt ? apiUrl('/api/export/practices.csv', { scope, asAt }) : csv} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-xs hover:bg-accent">
+        <a rel="nofollow" href={asAt ? apiUrl('/api/export/practices.csv', { scope, asAt }) : csv} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-xs hover:bg-accent">
           <Download aria-hidden className="h-4 w-4" /> CSV
         </a>
       </PageHeading>

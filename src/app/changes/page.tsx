@@ -71,10 +71,10 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
         title="Changes"
         description={`What changed in ODS${scope ? ` in ${place}` : ' across England'}. History comes from monthly NHS releases until August 2026, then from the ODS API every 6 hours.`}
       >
-        <a href={apiUrl('/api/export/changes.csv', filters)} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-xs hover:bg-accent">
+        <a rel="nofollow" href={apiUrl('/api/export/changes.csv', filters)} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-xs hover:bg-accent">
           <Download aria-hidden className="h-4 w-4" /> CSV
         </a>
-        <a href={apiUrl('/api/changes.rss', filters)} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-xs hover:bg-accent">
+        <a rel="nofollow" href={apiUrl('/api/changes.rss', filters)} className="inline-flex h-9 items-center gap-2 rounded-lg border bg-card px-3 text-sm shadow-xs hover:bg-accent">
           <Rss aria-hidden className="h-4 w-4 text-[#eb6834]" /> Follow (RSS)
         </a>
       </PageHeading>

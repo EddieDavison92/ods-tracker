@@ -274,7 +274,7 @@ export default async function OrgPage({ params, searchParams }: { params: Params
                 <span>{def.singular}</span>
                 {roleName ? <span>· {roleName}</span> : null}
                 <a
-                  href={rss}
+                  rel="nofollow" href={rss}
                   className="inline-flex min-h-7 items-center gap-1.5 rounded-md border bg-card px-2 text-sm shadow-xs hover:bg-accent"
                   title="Subscribe in Outlook, Feedly or any RSS reader to hear about changes"
                 >
@@ -462,7 +462,7 @@ export default async function OrgPage({ params, searchParams }: { params: Params
               items={view === 'related' ? detail.relatedEvents : detail.events}
               empty="No changes recorded."
             />
-            <a href={rss} className="inline-flex min-h-8 items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
+            <a rel="nofollow" href={rss} className="inline-flex min-h-8 items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
               <Rss aria-hidden className="h-3.5 w-3.5" /> Follow changes to this organisation (RSS)
             </a>
           </div>
@@ -538,7 +538,7 @@ export default async function OrgPage({ params, searchParams }: { params: Params
                     <a className={cn('inline-flex items-center gap-1', inlineLink)} href={`https://directory.spineservices.nhs.uk/ORD/2-0-0/organisations/${org.code}?_format=json`} target="_blank" rel="noreferrer">
                       Official ODS record <ExternalLink aria-hidden className="h-3 w-3" /><span className="sr-only"> (opens in a new tab)</span>
                     </a>
-                    <a className={cn('inline-flex items-center gap-1', inlineLink)} href={`${API_BASE}/api/orgs/${org.code}`} target="_blank" rel="noreferrer">
+                    <a className={cn('inline-flex items-center gap-1', inlineLink)} href={`${API_BASE}/api/orgs/${org.code}`} target="_blank" rel="nofollow noreferrer">
                       This record as JSON <ExternalLink aria-hidden className="h-3 w-3" /><span className="sr-only"> (opens in a new tab)</span>
                     </a>
                   </span>
