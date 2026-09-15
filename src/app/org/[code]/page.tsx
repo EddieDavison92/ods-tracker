@@ -201,7 +201,7 @@ async function Members({ detail, sp }: { detail: OrgDetail; sp: Query }) {
             <Link href={href({ rel: null })} className={chip(!rel)}>Any relationship</Link>
             {relTypes.map((t) => (
               <Link key={t.code} href={href({ rel: t.code })} className={chip(rel === t.code)} title={`ODS relationship ${t.code}: ${t.name ?? ''}`}>
-                {inverseRelLabel(t.code)} <span className="tabular opacity-80">{formatNumber(t.count)}</span>
+                {inverseRelLabel(t.code, detail.org.group)} <span className="tabular opacity-80">{formatNumber(t.count)}</span>
               </Link>
             ))}
           </div>
@@ -251,7 +251,7 @@ async function Members({ detail, sp }: { detail: OrgDetail; sp: Query }) {
                   {c.status !== 'Active' ? <StatusBadge status={c.status} /> : null}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {groupDef(c.group).singular} · {c.relTypes.map((t) => inverseRelLabel(t.code)).join(', ')}
+                  {groupDef(c.group).singular} · {c.relTypes.map((t) => inverseRelLabel(t.code, detail.org.group)).join(', ')}
                   <span className="tabular"> · {formatRange(c.start, c.end)}</span>
                 </p>
               </div>

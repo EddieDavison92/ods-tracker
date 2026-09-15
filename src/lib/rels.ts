@@ -29,7 +29,9 @@ const INVERSE: Record<string, string> = {
 export const relLabel = (r: Pick<OrgRelInfo, 'type' | 'orgPrimaryRole'>) =>
   r.type.code === 'RE8' && r.orgPrimaryRole?.code === 'RO272' ? 'Member of PCN' : LABELS[r.type.code] ?? r.type.name ?? r.type.code
 
-export const inverseRelLabel = (code: string) => INVERSE[code] ?? code
+// RE8 is "partner of" in ODS; only a PCN's partners are its members.
+export const inverseRelLabel = (code: string, parentGroup?: string | null) =>
+  code === 'RE8' && parentGroup !== 'pcn' ? 'Partner' : INVERSE[code] ?? code
 
 // Timeline order and hues (validated categorical slots 1-5; others grey).
 export const REL_ORDER = ['RE8', 'RE4', 'RE6', 'RE5', 'RE11', 'RE9', 'RE10', 'RE3', 'RE2']
