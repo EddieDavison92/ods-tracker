@@ -17,7 +17,7 @@ const emptyScopes: Scopes = { regions: [], icbs: [], sicbls: [] }
 export const metadata: Metadata = {
   title: { default: 'ODS Tracker – every NHS organisation in England', template: '%s · ODS Tracker' },
   description:
-    'Search every NHS Organisation Data Service record in England and see how practices, PCNs, trusts, pharmacies and more have changed since 2018.',
+    'A free, independent tool to search every NHS Organisation Data Service record in England, browse how organisations relate and track changes since 2018. Not affiliated with NHS England.',
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
@@ -37,8 +37,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             <div className="space-y-1">
               <p className="font-medium text-foreground">ODS Tracker</p>
               <p>
-                NHS organisation data for England, with change history since{' '}
-                {meta?.historyFrom ? formatDate(meta.historyFrom) : '2018'}.
+                A free, independent way to explore NHS organisation data for England, with change history since{' '}
+                {meta?.historyFrom ? formatDate(meta.historyFrom) : '2018'}. Not affiliated with NHS England or the official ODS Portal.{' '}
+                <Link href="/about" className="text-primary hover:underline">About</Link>
               </p>
             </div>
             <div className="space-y-1">

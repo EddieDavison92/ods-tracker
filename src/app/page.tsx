@@ -82,6 +82,14 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               ))}
             </div>
           </div>
+          {scope ? null : (
+            <p className="mt-8 max-w-2xl text-sm text-white/65">
+              A free, independent tool for exploring NHS organisation data, browsing how organisations relate and tracking what changes. Not affiliated with NHS England or the official ODS Portal.{' '}
+              <Link href="/about" className="text-white/90 underline decoration-white/40 underline-offset-2 hover:decoration-white">
+                About this site
+              </Link>
+            </p>
+          )}
         </div>
       </section>
 

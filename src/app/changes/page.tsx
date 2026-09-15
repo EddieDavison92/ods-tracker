@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Download, Rss } from 'lucide-react'
 import { ActivityChart } from '@/components/activity-chart'
 import { ChangeList } from '@/components/change-list'
-import { PageHeading, Panel, Segmented } from '@/components/field'
+import { EmptyState, PageHeading, Panel, Segmented } from '@/components/field'
 import { apiUrl, fetchActivity, fetchChanges, fetchScopes, optional } from '@/lib/api'
 import { daysAgoIso, formatNumber } from '@/lib/format'
 import { groupDef } from '@/lib/groups'
@@ -51,9 +51,9 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
   const date = basis === 'effective' ? 'effective' : undefined
   const filters = { scope, group, kinds, field, since, date }
 
-  // The feed is essential; the chart and area names degrade.
+  // Every section degrades on its own, so a busy database shows a message rather than an error page.
   const [feed, activity, scopes] = await Promise.all([
-    fetchChanges({ ...filters, cursor, limit: 60 }),
+    optional(fetchChanges({ ...filters, cursor, limit: 60 })),
     optional(fetchActivity({ scope, group, kinds, field, date, ...period.chart })),
     optional(fetchScopes()).then((s) => s ?? EMPTY_SCOPES),
   ])
@@ -125,13 +125,17 @@ export default async function ChangesPage({ searchParams }: { searchParams: Prom
       <div className="grid gap-6 lg:grid-cols-3 *:min-w-0">
         <section className="lg:col-span-2" aria-labelledby="feed-heading">
           <h2 id="feed-heading" className="sr-only">Latest changes</h2>
-          <ChangeList
-            grouped
-            by={basis === 'effective' ? 'effectiveDay' : 'detected'}
-            items={feed.items}
-            empty={`No ${presetLabel ?? ''} changes${typeLabel ? ` to ${typeLabel}` : ''} in this period. Try a longer period or another type.`}
-          />
-          {feed.nextCursor ? (
+          {feed ? (
+            <ChangeList
+              grouped
+              by={basis === 'effective' ? 'effectiveDay' : 'detected'}
+              items={feed.items}
+              empty={`No ${presetLabel ?? ''} changes${typeLabel ? ` to ${typeLabel}` : ''} in this period. Try a longer period or another type.`}
+            />
+          ) : (
+            <EmptyState>Changes could not be loaded just now; the database may be busy. Refresh in a few seconds.</EmptyState>
+          )}
+          {feed?.nextCursor ? (
             <div className="mt-6 text-center">
               <Link href={pageHref('/changes', sp, { cursor: feed.nextCursor, before: null })} className="inline-flex h-9 items-center rounded-lg border bg-card px-4 text-sm font-medium shadow-xs hover:bg-accent">
                 Older changes
