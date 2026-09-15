@@ -58,7 +58,6 @@ const slug = (s: string | null, fallback: string) => (s ? s.toLowerCase().replac
 async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(req.url)
   const path = url.pathname.replace(/\/+$/, '') || '/'
-  const db = env.DB
 
   if (req.method === 'OPTIONS') return new Response(null, { headers: CORS })
 
@@ -77,17 +76,20 @@ async function route(req: Request, env: Env, ctx: ExecutionContext): Promise<Res
     if (path === '/admin/refresh') {
       // ?codes=A,B recomputes just those orgs and their dependants; otherwise a full rebuild.
       const codes = url.searchParams.get('codes')?.split(',').map((c) => c.trim().toUpperCase()).filter(Boolean)
-      const timings = await refreshDerived(db, codes)
-      return respond(jsonPayload({ timings, meta: await meta(db) }, 0))
+      const timings = await refreshDerived(env.DB, codes)
+      return respond(jsonPayload({ timings, meta: await meta(env.DB) }, 0))
     }
     if (path === '/admin/reindex') {
-      await reindexSearch(db)
+      await reindexSearch(env.DB)
       return respond(jsonPayload({ ok: true }, 0))
     }
     throw new HttpError(404, 'unknown endpoint')
   }
 
   if (req.method !== 'GET') throw new HttpError(405, 'GET required')
+
+  // Public reads may use any read replica; data changes at most every 6 hours, so replica lag is harmless.
+  const db = env.DB.withSession('first-unconstrained')
 
   if (path !== '/' && path in ALLOWED_ENDPOINTS) checkParams(path, url)
 
@@ -175,19 +177,45 @@ const ALLOWED_ENDPOINTS: Record<string, true> = {
   '/api/export/changes.csv': true,
 }
 
+// Delays before each retry of a GET that hit a transient D1 error (plus up to 50% jitter).
+const RETRY_DELAYS_MS = [150, 500, 1200]
+
+// JSON API responses are kept in this data centre's edge cache for their Cache-Control max-age,
+// so repeated requests skip D1. Exports stream large bodies and are left out.
+const edgeCacheable = (req: Request, url: URL) =>
+  req.method === 'GET' && url.pathname.startsWith('/api/') && !url.pathname.startsWith('/api/export/')
+
+async function cachedRoute(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+  const url = new URL(req.url)
+  if (!edgeCacheable(req, url)) return route(req, env, ctx)
+  const cache = caches.default
+  const hit = await cache.match(req).catch(() => undefined)
+  if (hit) {
+    const res = new Response(hit.body, hit)
+    res.headers.set('X-Edge-Cache', 'HIT')
+    return res
+  }
+  const res = await route(req, env, ctx)
+  if (res.ok && /max-age=[1-9]/.test(res.headers.get('Cache-Control') ?? '')) {
+    ctx.waitUntil(cache.put(req, res.clone()).catch(() => undefined))
+  }
+  return res
+}
+
 export default {
   async fetch(req, env, ctx): Promise<Response> {
     for (let attempt = 0; ; attempt++) {
       try {
-        return await route(req, env, ctx)
+        return await cachedRoute(req, env, ctx)
       } catch (err) {
         if (err instanceof HttpError) {
           return Response.json({ error: err.message }, { status: err.status, headers: CORS })
         }
         const message = err instanceof Error ? err.message : String(err)
-        if (req.method === 'GET' && attempt === 0 && TRANSIENT.test(message)) {
-          console.warn('retrying after transient error', req.url, message)
-          await new Promise((r) => setTimeout(r, 200))
+        if (req.method === 'GET' && attempt < RETRY_DELAYS_MS.length && TRANSIENT.test(message)) {
+          console.warn('retrying after transient error', attempt + 1, req.url, message)
+          const delay = RETRY_DELAYS_MS[attempt]
+          await new Promise((r) => setTimeout(r, delay + Math.random() * delay * 0.5))
           continue
         }
         console.error('request failed', req.url, message)
