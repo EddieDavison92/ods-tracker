@@ -1,5 +1,6 @@
 // UI crawler: visits every page type, edge-case URLs and sample orgs of every type (every tab),
 // and fails on error states, console errors, 5xx responses, missing headings or mobile overflow.
+// Every API link and API form on the pages (CSV, RSS, JSON) is then requested once and must return 200.
 // Usage: node scripts/qa-crawl.mjs [baseUrl]     (default http://localhost:3100)
 //        API=https://... to choose where sample org codes come from.
 import { chromium } from 'playwright'
@@ -51,7 +52,27 @@ for (const [i, code] of codes.entries()) {
 
 const browser = await chromium.launch()
 const failures = []
+// API link -> first page it appeared on.
+const apiLinks = new Map()
 let done = 0
+
+// Requests each API link once; reads headers only and cancels the body, so big exports are not downloaded.
+async function checkLinks() {
+  const list = [...apiLinks]
+  let i = 0
+  await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
+    while (i < list.length) {
+      const [url, from] = list[i++]
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(30_000) })
+        if (!res.ok) failures.push(`link on ${from}: ${url} -> HTTP ${res.status} ${(await res.text()).slice(0, 120)}`)
+        else await res.body?.cancel()
+      } catch (err) {
+        failures.push(`link on ${from}: ${url} -> ${err.cause?.code ?? err.message}`)
+      }
+    }
+  }))
+}
 
 async function visit(context, [path, expected]) {
   const page = await context.newPage()
@@ -74,6 +95,17 @@ async function visit(context, [path, expected]) {
     if (errors.length) problems.push(`console: ${[...new Set(errors)].slice(0, 2).join(' | ')}`)
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     if (overflow > 2) problems.push(`horizontal overflow ${overflow}px`)
+    // API links, and API forms submitted with their default values as a browser would (empty fields included).
+    const links = await page.evaluate(() => {
+      const out = [...document.querySelectorAll('a[href*="/api/"]')].map((a) => a.href)
+      for (const f of document.querySelectorAll('form[action*="/api/"]')) {
+        const u = new URL(f.action)
+        for (const [k, v] of new FormData(f)) u.searchParams.append(k, String(v))
+        out.push(u.toString())
+      }
+      return out
+    })
+    for (const l of links) if (!apiLinks.has(l)) apiLinks.set(l, path)
     if (problems.length) failures.push(`${path}: ${problems.join('; ')}`)
   } catch (err) {
     failures.push(`${path}: ${err.message.split('\n')[0]}`)
@@ -99,8 +131,9 @@ await crawl({ width: 1440, height: 900 }, pages)
 const mobile = pages.filter((_, i) => i % 4 === 0).map(([p, s]) => [`${p}${p.includes('?') ? '&' : '?'}m=1`, s])
 await crawl({ width: 390, height: 844 }, mobile)
 await browser.close()
+await checkLinks()
 
-console.log(`${done} page loads (${pages.length} desktop, ${mobile.length} mobile, ${codes.length} sample orgs) in ${((Date.now() - t0) / 1000).toFixed(0)}s`)
+console.log(`${done} page loads (${pages.length} desktop, ${mobile.length} mobile, ${codes.length} sample orgs), ${apiLinks.size} API links, in ${((Date.now() - t0) / 1000).toFixed(0)}s`)
 if (failures.length) {
   console.log(`\n${failures.length} failures:\n  ${failures.join('\n  ')}`)
   process.exit(1)

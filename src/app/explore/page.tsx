@@ -113,7 +113,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   const def = group ? groupDef(group) : null
   const place = scopeLabel(scopes, scope)
   const href = (updates: Record<string, string | null>) => pageHref('/explore', sp, { offset: null, ...updates })
-  const csv = apiUrl('/api/export/orgs.csv', { q, group, scope, status, sort })
+  // The export takes the same filters but no sort: rows stream in ODS code order.
+  const csv = apiUrl('/api/export/orgs.csv', { q, group, scope, status })
   const title = q ? <>Results for “{q}”</> : def ? def.label : 'Explore organisations'
   const statusWord = status === 'active' ? 'active ' : status === 'inactive' ? 'closed ' : ''
 

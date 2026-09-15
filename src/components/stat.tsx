@@ -21,7 +21,8 @@ export function StatTile({
     <div
       className={cn(
         'flex h-full flex-col gap-1 rounded-xl border bg-card p-4 shadow-xs transition-colors',
-        href && 'hover:border-primary/40 hover:bg-accent/40',
+        // Opaque hover: the tiles overlap the dark hero, so a translucent fill lets it show through.
+        href && 'hover:border-primary/40 hover:bg-accent',
         className,
       )}
     >
