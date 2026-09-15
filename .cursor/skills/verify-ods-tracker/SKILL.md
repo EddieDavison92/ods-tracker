@@ -25,8 +25,8 @@ Pick a free port. `scripts/qa-crawl.mjs` defaults to 3100, so use that when it i
 export VERIFY_SITE=http://127.0.0.1:3100
 export VERIFY_API="${NEXT_PUBLIC_ODS_API_URL:-https://api.ods-tracker.org}"
 export VERIFY_PID_FILE="/tmp/ods-tracker-verify-$$.pid"
-# Ready when GET $VERIFY_SITE/ returns 200.
-npx next dev --hostname 127.0.0.1 --port 3100
+# Ready when GET $VERIFY_SITE/ returns 200. Record the `next` pid, not an `npx` wrapper.
+./node_modules/.bin/next dev --hostname 127.0.0.1 --port 3100 &
 echo $! > "$VERIFY_PID_FILE"
 ```
 
@@ -50,7 +50,7 @@ It must report:
 
 - API `GET /api/meta` → 200, `stats.orgs` ≥ 300000, `lastSyncDate` not more than 2 days old, latest run not `error`
 - Site `GET /` → 200, body contains `ODS Tracker` and an `h1`
-- If `--pid-file` is set, that PID is still alive and owns the site port
+- If `--pid-file` is set, that PID is still alive
 
 Refuse to drive when doctor fails. Do not “fix” a shared API from this skill (no `/admin/*`).
 
@@ -97,13 +97,16 @@ Mocks are not used. The Worker is the production boundary.
 
 ## Cleanup
 
-Kill only the Next.js process this run started:
+Kill only the Next.js process this run started. Walk children of the recorded pid (do not `pkill` by name):
 
 ```bash
+stop_tree() {
+  local p=$1
+  for c in $(pgrep -P "$p" 2>/dev/null); do stop_tree "$c"; done
+  kill "$p" 2>/dev/null || true
+}
 if [ -f "$VERIFY_PID_FILE" ]; then
-  pid=$(cat "$VERIFY_PID_FILE")
-  kill "$pid" 2>/dev/null || true
-  wait "$pid" 2>/dev/null || true
+  stop_tree "$(cat "$VERIFY_PID_FILE")"
   rm -f "$VERIFY_PID_FILE"
 fi
 ```

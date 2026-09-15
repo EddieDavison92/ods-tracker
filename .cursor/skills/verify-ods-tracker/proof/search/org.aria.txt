@@ -1,0 +1,170 @@
+- banner:
+  - link "Skip to content":
+    - /url: "#main"
+  - link "ODS Tracker home":
+    - /url: /
+    - text: ODS Tracker
+  - button "Search organisations": Search Ctrl K
+  - navigation "Main":
+    - link "Explore":
+      - /url: /explore
+    - link "Changes":
+      - /url: /changes
+    - link "Areas":
+      - /url: /areas
+    - link "Export":
+      - /url: /export
+    - link "API":
+      - /url: /docs
+  - 'button "Area: All England. Change area"': All England
+- main:
+  - article:
+    - navigation "Breadcrumb":
+      - link "England":
+        - /url: /areas
+      - link "London":
+        - /url: /org/Y56
+      - link "NHS West and North London Integrated Care Board":
+        - /url: /org/Z9B2Z
+      - link "NHS West and North London ICB - 93C":
+        - /url: /org/93C
+      - link "North 2 Islington PCN":
+        - /url: /org/U02795
+    - heading "Archway Medical Centre" [level=1]
+    - text: Active
+    - button "Copy code F83004": F83004
+    - text: GP practice
+    - link "Follow changes":
+      - /url: https://api.ods-tracker.org/api/changes.rss?code=F83004
+    - term: Opened
+    - definition: 1 Apr 1974 · 52 years
+    - term: Address
+    - definition:
+      - text: 652 Holloway Road, London, Greater London,
+      - link "N19 3NU (opens map in a new tab)":
+        - /url: https://www.google.com/maps/search/N19%203NU
+    - term: Contact
+    - definition:
+      - link "020 72720111":
+        - /url: tel:02072720111
+      - text: No website in ODS
+    - term: Last changed in ODS
+    - definition: 1 Apr 2024
+    - navigation "Sections":
+      - link "Overview":
+        - /url: /org/F83004
+      - link "Timeline 8":
+        - /url: /org/F83004?tab=timeline
+      - link "Relationships 9":
+        - /url: /org/F83004?tab=relationships
+      - link "Details":
+        - /url: /org/F83004?tab=details
+    - heading "Relationship history" [level=2]
+    - link "Table":
+      - /url: /org/F83004?tab=relationships
+    - region "PCN":
+      - heading "PCN" [level=3]
+      - list:
+        - listitem:
+          - link "North 1 Islington PCN":
+            - /url: /org/U36795
+          - text: from 1 Oct 2019 to 30 Apr 2021
+        - listitem:
+          - link "North 2 Islington PCN":
+            - /url: /org/U02795
+          - text: from 30 Apr 2021 to now
+    - region "Commissioner":
+      - heading "Commissioner" [level=3]
+      - list:
+        - listitem:
+          - link "North Islington PCG":
+            - /url: /org/4TE61
+          - text: from 1 Apr 1999 to 31 Mar 2002
+        - listitem:
+          - link "Islington PCT":
+            - /url: /org/5K8
+          - text: from 1 Apr 2002 to 31 Mar 2013
+        - listitem:
+          - link "NHS Islington CCG":
+            - /url: /org/08H
+          - text: from 1 Apr 2013 to 31 Mar 2020, also operated by
+        - listitem:
+          - link "NHS West and North London ICB - 93C":
+            - /url: /org/93C
+          - text: from 1 Apr 2020 to now, also operated by
+    - region "Locality":
+      - heading "Locality" [level=3]
+      - list:
+        - listitem:
+          - link "Islington - Sub-ICB Reporting Entity":
+            - /url: /org/D9P3T
+          - text: from 1 Apr 2024 to now
+    - heading "Recent changes" [level=2]
+    - link "All 8":
+      - /url: /org/F83004?tab=timeline
+    - list:
+      - listitem:
+        - text: Joined Became a constituent of
+        - link "Islington - Sub-ICB Reporting EntityD9P3T":
+          - /url: /org/D9P3T
+        - paragraph: 1 Apr 2024 · recorded 22 Apr 2024
+      - listitem:
+        - text: Left Left PCN
+        - link "North 1 Islington PCNU36795":
+          - /url: /org/U36795
+        - paragraph: 30 Apr 2021 · recorded 24 May 2021
+      - listitem:
+        - text: Joined Joined PCN
+        - link "North 2 Islington PCNU02795":
+          - /url: /org/U02795
+        - paragraph: 30 Apr 2021 · recorded 24 May 2021
+      - listitem:
+        - text: Joined Now operated by
+        - link "NHS West and North London ICB - 93C93C":
+          - /url: /org/93C
+        - paragraph: 1 Apr 2020 · recorded 21 Aug 2023
+      - listitem:
+        - text: Joined Now commissioned by
+        - link "NHS West and North London ICB - 93C93C":
+          - /url: /org/93C
+        - paragraph: 1 Apr 2020 · recorded 27 Apr 2020
+      - listitem:
+        - text: Left No longer commissioned by
+        - link "NHS Islington CCG08H":
+          - /url: /org/08H
+        - paragraph: 31 Mar 2020 · recorded 27 Apr 2020
+    - heading "Where it sits" [level=2]
+    - list:
+      - listitem:
+        - paragraph: Region
+        - link "London Commissioning RegionY56":
+          - /url: /org/Y56
+      - listitem:
+        - paragraph: ICB
+        - link "NHS West and North London Integrated Care BoardZ9B2Z":
+          - /url: /org/Z9B2Z
+      - listitem:
+        - paragraph: Sub-ICB location
+        - link "NHS West and North London ICB - 93C93C":
+          - /url: /org/93C
+      - listitem:
+        - paragraph: PCN
+        - link "North 2 Islington PCNU02795":
+          - /url: /org/U02795
+- contentinfo:
+  - paragraph: ODS Tracker
+  - paragraph:
+    - text: A free, independent way to explore NHS organisation data for England, with change history since 28 Jun 2018. Not affiliated with NHS England or the official ODS Portal.
+    - link "About":
+      - /url: /about
+  - paragraph: Freshness
+  - paragraph: Data up to 15 Sep 2026, checked about 6 hours ago. The ODS API is checked every 6 hours.
+  - paragraph: Sources
+  - paragraph:
+    - text: NHS England Organisation Data Service via TRUD and the ORD API, under the Open Government Licence.
+    - link "Exports":
+      - /url: /export
+    - text: ·
+    - link "API":
+      - /url: /docs
+- alert: Archway Medical Centre

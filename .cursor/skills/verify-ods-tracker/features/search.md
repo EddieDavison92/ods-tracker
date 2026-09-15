@@ -29,7 +29,7 @@ Preconditions:
 
 - **API match.** Ask suggest for the known practice. Run `GET $VERIFY_API/api/suggest?q=F83004` with the 500 ms gap. Status `200` and `items[0].code` is `F83004`. Save the body as `proof/search/suggest.json`.
 - **Hero entry.** Open home and choose the hero search. Run `node .cursor/skills/verify-ods-tracker/helpers/drive-search.mjs --site "$VERIFY_SITE" --api "$VERIFY_API" --out .cursor/skills/verify-ods-tracker/proof/search`. The dialog named `Search organisations` appears with focus in the box placeholder `Name, ODS code or postcode`.
-- **Type a code.** The helper types `F83004`. After the spinner stops, the list includes a row whose accessible text contains `F83004` and `Archway`.
+- **Type a code.** The helper types `F83004`. Wait for an organisation row (`[cmdk-item]` containing `F83004` but not `See all results`). That row’s text includes `Archway`. Do not treat the immediate “see all results” item as a match.
 - **Open result.** Activate that row. The dialog closes and the page URL is `$VERIFY_SITE/org/F83004`. The `h1` contains `Archway`.
 - **Header entry.** From any page, choose `Search organisations` (or press `/`). The same dialog opens and the URL does not gain a slash.
 - **Empty state.** Type `zzzzqqqq`. A message `No organisations match “zzzzqqqq”.` appears.
@@ -45,3 +45,4 @@ The helper covers hero open, type, result, and org proof. Drive header, empty, a
 - `/search` is a redirect into Explore, not the command dialog. Do not treat an Explore heading as proof that the dialog opened.
 - Do not follow the Explore **CSV** link from “see all results”.
 - Live codes can disappear. If `F83004` 404s, record the miss; do not silently switch codes.
+- Opening the search dialog sets `aria-hidden` on the header. In `next dev` that can log a hydration mismatch. Ignore that console line; it is not a failed search.

@@ -1,0 +1,8 @@
+feature: search
+entry: home hero + GET /api/suggest?q=F83004
+site: http://127.0.0.1:3100
+api: https://api.ods-tracker.org
+API suggest F83004 → F83004 ARCHWAY MEDICAL CENTRE
+hero search F83004 → http://127.0.0.1:3100/org/F83004 h1=Archway Medical Centre
+doctor: PASS (371150 orgs, lastSyncDate 2026-09-15, pid alive)
+cleanup: next tree stopped; 127.0.0.1:3100 closed; this directory kept

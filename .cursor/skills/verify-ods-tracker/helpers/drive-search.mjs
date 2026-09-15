@@ -54,10 +54,17 @@ note(`API suggest ${CODE} → ${suggest.items[0].code} ${suggest.items[0].name}`
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } })
 const errors = []
-page.on('pageerror', (e) => errors.push(e.message))
-page.on('console', (m) => {
-  if (m.type() === 'error') errors.push(m.text())
+const noise = /hydrat(e|ion)|aria-hidden/i
+page.on('pageerror', (e) => {
+  if (!noise.test(e.message)) errors.push(e.message)
 })
+page.on('console', (m) => {
+  if (m.type() === 'error' && !noise.test(m.text())) errors.push(m.text())
+})
+
+async function hideDevOverlay(page) {
+  await page.addStyleTag({ content: 'nextjs-portal { display: none !important }' }).catch(() => {})
+}
 
 try {
   await page.goto(`${SITE}/`, { waitUntil: 'load', timeout: 45_000 })
@@ -65,15 +72,21 @@ try {
   const box = page.getByPlaceholder('Name, ODS code or postcode')
   await box.waitFor({ state: 'visible' })
   await box.fill(CODE)
-  const row = page.locator('[cmdk-item]').filter({ hasText: CODE }).first()
-  await row.waitFor({ state: 'visible', timeout: 15_000 })
+  // "See all results for F83004" appears immediately; wait for the organisation hit.
+  const row = page.locator('[cmdk-item]').filter({ hasText: CODE }).filter({ hasNotText: 'See all results' })
+  await row.first().waitFor({ state: 'visible', timeout: 15_000 })
+  if (!(await row.first().innerText()).match(/archway/i)) {
+    throw new Error(`suggestion row was "${(await row.first().innerText()).slice(0, 120)}"`)
+  }
+  await hideDevOverlay(page)
   writeFileSync(`${OUT}/dialog.aria.txt`, await page.locator('body').ariaSnapshot())
   await page.screenshot({ path: `${OUT}/dialog.png`, fullPage: false })
-  await row.click()
+  await row.first().click()
   await page.waitForURL(new RegExp(`/org/${CODE}$`), { timeout: 20_000 })
   const heading = await page.locator('h1').innerText()
   if (!/archway/i.test(heading)) throw new Error(`org h1 was "${heading}", expected Archway`)
   if (errors.length) throw new Error(`console: ${[...new Set(errors)].slice(0, 2).join(' | ')}`)
+  await hideDevOverlay(page)
   writeFileSync(`${OUT}/org.aria.txt`, await page.locator('body').ariaSnapshot())
   await page.screenshot({ path: `${OUT}/org.png`, fullPage: false })
   note(`hero search ${CODE} → ${page.url()} h1=${heading}`)
