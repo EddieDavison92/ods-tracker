@@ -30,7 +30,9 @@ const ORG_FILTERS: [string, string][] = [
 
 const CHANGE_FILTERS: [string, string][] = [
   ['scope', 'Region, ICB, Sub-ICB location or PCN code.'],
-  ['code', 'Changes to one organisation.'],
+  ['code', 'Changes to one organisation or naming it (either side).'],
+  ['org', 'Changes to one organisation only.'],
+  ['related', 'Changes to other organisations that name this one (e.g. practices joining a PCN).'],
   ['group', 'Organisation type key; comma-separate for several.'],
   ['kinds', 'Comma-separated change kinds (see below).'],
   ['field', 'Relationship type code. field=RE8&kinds=rel_added,rel_ended gives PCN joins and leaves.'],

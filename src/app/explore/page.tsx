@@ -63,7 +63,8 @@ function OrgRow({ row }: { row: OrgListRow }) {
         <Context row={row} />
       </div>
       <div className="hidden shrink-0 text-right text-xs text-muted-foreground sm:block">
-        {row.opEnd ? <p>Closed {formatDate(row.opEnd)}</p> : <p>Opened {formatDate(row.opStart)}</p>}
+        {/* ODS records some closures in advance. */}
+        {row.opEnd ? <p>{row.opEnd > new Date().toISOString().slice(0, 10) ? 'Closes' : 'Closed'} {formatDate(row.opEnd)}</p> : <p>Opened {formatDate(row.opStart)}</p>}
       </div>
     </li>
   )

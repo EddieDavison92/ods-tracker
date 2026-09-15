@@ -17,9 +17,23 @@ export type GroupBy = 'detected' | 'effective' | 'effectiveDay'
 const effectiveOf = (i: ChangeItem) => i.effectiveDate ?? i.detectedAt
 const newestEffectiveFirst = (a: ChangeItem, b: ChangeItem) => effectiveOf(b).localeCompare(effectiveOf(a)) || b.id - a.id
 
+// ODS records some changes in advance (contracts ending, planned closures).
+const todayIso = () => new Date().toISOString().slice(0, 10)
+const isScheduled = (i: ChangeItem, today: string) => !!i.effectiveDate && i.effectiveDate > today
+
 function groupItems(items: ChangeItem[], by: GroupBy) {
   const groups: { key: string; label: string; items: ChangeItem[] }[] = []
-  const sorted = by === 'detected' ? items : [...items].sort(newestEffectiveFirst)
+  const today = todayIso()
+  // By effective date, scheduled changes come first under "Upcoming", soonest first.
+  const upcoming = by === 'detected' ? [] : items.filter((i) => isScheduled(i, today))
+  if (upcoming.length) {
+    groups.push({
+      key: 'upcoming',
+      label: 'Upcoming',
+      items: upcoming.sort((a, b) => effectiveOf(a).localeCompare(effectiveOf(b)) || a.id - b.id),
+    })
+  }
+  const sorted = by === 'detected' ? items : items.filter((i) => !isScheduled(i, today)).sort(newestEffectiveFirst)
   for (const item of sorted) {
     const key = by === 'effective' ? effectiveOf(item).slice(0, 4) : by === 'effectiveDay' ? effectiveOf(item) : item.detectedAt
     const last = groups[groups.length - 1]
@@ -74,13 +88,14 @@ function Detail({ item }: { item: ChangeItem }) {
 function Dates({ item, by, showDate }: { item: ChangeItem; by?: GroupBy; showDate?: boolean }) {
   const effective = item.effectiveDate
   const differs = effective && effective !== item.detectedAt
+  const scheduled = isScheduled(item, todayIso())
   const parts: string[] = []
   if (by === 'effective') {
-    parts.push(formatDate(effectiveOf(item)))
+    parts.push(`${scheduled ? 'Takes effect ' : ''}${formatDate(effectiveOf(item))}`)
     if (differs) parts.push(`recorded ${formatDate(item.detectedAt)}`)
   } else {
     if (showDate) parts.push(`Detected ${formatDate(item.detectedAt)}`)
-    if (differs) parts.push(`Effective ${formatDate(effective)}`)
+    if (differs) parts.push(`${scheduled ? 'Takes effect' : 'Effective'} ${formatDate(effective)}`)
   }
   return parts.length ? <p className="text-xs text-muted-foreground">{parts.join(' · ')}</p> : null
 }
@@ -107,6 +122,11 @@ export function ChangeRow({
           </div>
         )}
         <div className={cn('text-sm leading-snug', hideOrg && 'pt-1')}>
+          {isScheduled(item, todayIso()) ? (
+            <span className="mr-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-800 ring-1 ring-inset ring-amber-200">
+              Scheduled
+            </span>
+          ) : null}
           <Detail item={item} />
         </div>
         <Dates item={item} by={by} showDate={showDate} />

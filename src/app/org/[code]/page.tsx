@@ -10,7 +10,7 @@ import { GroupBadge, GroupIcon } from '@/components/group-badge'
 import { Lifeline } from '@/components/lifeline'
 import { OrgLink, orgHref } from '@/components/org-link'
 import { StatusBadge } from '@/components/status-badge'
-import { API_BASE, apiUrl, fetchChildren, fetchOrg, optional } from '@/lib/api'
+import { API_BASE, apiUrl, fetchChanges, fetchChildren, fetchOrg, optional } from '@/lib/api'
 import { formatDate, formatNumber, formatRange } from '@/lib/format'
 import { groupDef } from '@/lib/groups'
 import { firstParam, pageHref, type Query } from '@/lib/href'
@@ -107,6 +107,10 @@ function Hierarchy({ detail }: { detail: OrgDetail }) {
 
 // ODS records operational and legal dates separately; either may be missing.
 const dateRange = (start: string | null, end: string | null) => (start || end ? formatRange(start, end) : '—')
+const todayIso = () => new Date().toISOString().slice(0, 10)
+// Marks an end date that ODS has recorded ahead of time.
+const Scheduled = ({ end }: { end: string | null }) =>
+  end && end > todayIso() ? <span className="ml-1 text-xs font-medium text-amber-800">scheduled</span> : null
 
 function RelTable({ rows }: { rows: OrgRelInfo[] }) {
   return (
@@ -134,7 +138,7 @@ function RelTable({ rows }: { rows: OrgRelInfo[] }) {
               <td className="py-2 pr-3 text-muted-foreground">
                 {relLabel(r)} <span className="font-mono text-xs">{r.type.code}</span>
               </td>
-              <td className="whitespace-nowrap py-2 pr-3 tabular">{dateRange(r.opStart, r.opEnd)}</td>
+              <td className="whitespace-nowrap py-2 pr-3 tabular">{dateRange(r.opStart, r.opEnd)}<Scheduled end={r.opEnd} /></td>
               <td className="hidden whitespace-nowrap py-2 pr-3 tabular md:table-cell">{dateRange(r.legalStart, r.legalEnd)}</td>
               <td className="py-2">
                 <StatusBadge status={r.status ?? (r.opEnd ? 'Inactive' : 'Active')} labels={['Current', 'Ended']} />
@@ -278,18 +282,32 @@ export default async function OrgPage({ params, searchParams }: { params: Params
   const base = `/org/${org.code}`
   const website = org.url ? (/^https?:\/\//i.test(org.url) ? org.url.toLowerCase() : `https://${org.url.toLowerCase()}`) : null
   const today = new Date().toISOString().slice(0, 10)
-  const current = detail.parents.filter((r) => !r.opEnd)
-  const past = detail.parents.filter((r) => r.opEnd)
+  // In force until the end date passes: ODS records scheduled endings in advance.
+  const inForce = (r: { opEnd: string | null }) => !r.opEnd || r.opEnd > today
+  const current = detail.parents.filter(inForce)
+  const past = detail.parents.filter((r) => !inForce(r))
+  const closing = !!org.opEnd && org.opEnd > today
+  const closedOn = closing ? null : org.opEnd
   const members = membersLabel(detail)
+  // Totals from the API; older cached records lack them, so fall back to the capped lists.
+  const eventCounts = detail.eventCounts ?? { own: detail.events.length, involving: detail.relatedEvents.length }
   const tabs: { key: Tab; label: string; short?: string; count?: number }[] = [
     { key: 'overview', label: 'Overview' },
-    { key: 'timeline', label: 'Timeline', count: detail.events.length + detail.relatedEvents.length },
+    { key: 'timeline', label: 'Timeline', count: eventCounts.own + eventCounts.involving },
     ...(hasMembers ? [{ key: 'members' as const, label: members.tab, count: detail.childrenTotal }] : []),
     { key: 'relationships', label: 'Relationships', short: 'Links', count: detail.parents.length + detail.successions.length },
     { key: 'details', label: 'Details' },
   ]
   const view = firstParam(sp.view) === 'related' ? 'related' : 'own'
   const rss = apiUrl('/api/changes.rss', { code: org.code })
+  // The timeline pages through the change feed, 100 at a time; the org record only carries the latest few.
+  const cursorRaw = firstParam(sp.cursor) ?? ''
+  const cursor = /^\d{4}-\d{2}-\d{2}\|\d{1,15}$/.test(cursorRaw) ? cursorRaw : undefined
+  const feed = tab === 'timeline'
+    ? await optional(fetchChanges({ [view === 'related' ? 'related' : 'org']: org.code, date: 'effective', cursor, limit: 100 }))
+    : null
+  const timelineItems = feed?.items ?? (view === 'related' ? detail.relatedEvents : detail.events)
+  const timelineHref = (extra = '') => `${base}?tab=timeline${view === 'related' ? '&view=related' : ''}${extra}`
 
   // ODS can keep Status=Active after a legal end or succession (e.g. merged ICBs); say so plainly.
   const successor = detail.successions.find((s) => s.type === 'Successor' && s.date && s.date <= today)
@@ -337,9 +355,10 @@ export default async function OrgPage({ params, searchParams }: { params: Params
             </div>
           </div>
           <dl className="grid gap-x-8 gap-y-4 pb-5 sm:grid-cols-2 lg:grid-cols-4">
-            <Fact label={org.opEnd ? 'Open' : 'Opened'}>
-              {org.opEnd ? formatRange(org.opStart, org.opEnd) : formatDate(org.opStart)}
-              {org.opStart ? <span className="text-muted-foreground"> · {yearsSince(org.opStart, org.opEnd)}</span> : null}
+            <Fact label={closedOn ? 'Open' : 'Opened'}>
+              {closedOn ? formatRange(org.opStart, closedOn) : formatDate(org.opStart)}
+              {org.opStart ? <span className="text-muted-foreground"> · {yearsSince(org.opStart, closedOn)}</span> : null}
+              {closing ? <span className="mt-0.5 block text-xs font-medium text-amber-800">Due to close {formatDate(org.opEnd)}</span> : null}
             </Fact>
             <Fact label="Address" icon={<MapPin aria-hidden className="h-3 w-3" />}>
               {displayAddress([...org.address, org.town, org.county]) || '—'}
@@ -492,19 +511,32 @@ export default async function OrgPage({ params, searchParams }: { params: Params
               label="Timeline"
               value={view}
               options={[
-                { value: 'own', label: `This organisation (${detail.events.length})` },
-                { value: 'related', label: `Involving it (${detail.relatedEvents.length})` },
+                { value: 'own', label: `This organisation (${formatNumber(eventCounts.own)})` },
+                { value: 'related', label: `Involving it (${formatNumber(eventCounts.involving)})` },
               ]}
               hrefFor={(v) => `${base}?tab=timeline${v === 'related' ? '&view=related' : ''}`}
             />
-            <p className="text-xs text-muted-foreground">Grouped by the year each change took effect, newest first.</p>
-            <ChangeList
-              grouped
-              by="effective"
-              hideOrg={view !== 'related'}
-              items={view === 'related' ? detail.relatedEvents : detail.events}
-              empty="No changes recorded."
-            />
+            <p className="text-xs text-muted-foreground">
+              Grouped by the year each change took effect, newest first. Changes ODS has recorded ahead of time are listed under Upcoming.
+            </p>
+            <ChangeList grouped by="effective" hideOrg={view !== 'related'} items={timelineItems} empty="No changes recorded." />
+            {cursor || feed?.nextCursor ? (
+              <div className="flex flex-wrap gap-3">
+                {cursor ? (
+                  <Link href={timelineHref()} className="inline-flex h-9 items-center rounded-lg border bg-card px-4 text-sm font-medium shadow-xs hover:bg-accent">
+                    Newest changes
+                  </Link>
+                ) : null}
+                {feed?.nextCursor ? (
+                  <Link
+                    href={timelineHref(`&cursor=${encodeURIComponent(feed.nextCursor)}`)}
+                    className="inline-flex h-9 items-center rounded-lg border bg-card px-4 text-sm font-medium shadow-xs hover:bg-accent"
+                  >
+                    Older changes
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
             <a rel="nofollow" href={rss} className="inline-flex min-h-8 items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
               <Rss aria-hidden className="h-3.5 w-3.5" /> Follow changes to this organisation (RSS)
             </a>
@@ -561,7 +593,7 @@ export default async function OrgPage({ params, searchParams }: { params: Params
                           {displayName(r.role.name) || r.role.code} <span className="font-mono text-xs text-muted-foreground">{r.role.code}</span>
                           {r.primary ? <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-[11px] font-medium text-accent-foreground">Primary</span> : null}
                         </td>
-                        <td className="whitespace-nowrap py-2 pr-3 tabular">{dateRange(r.opStart, r.opEnd)}</td>
+                        <td className="whitespace-nowrap py-2 pr-3 tabular">{dateRange(r.opStart, r.opEnd)}<Scheduled end={r.opEnd} /></td>
                         <td className="hidden whitespace-nowrap py-2 pr-3 tabular md:table-cell">{dateRange(r.legalStart, r.legalEnd)}</td>
                         <td className="py-2"><StatusBadge status={r.status} labels={['Active', 'Ended']} /></td>
                       </tr>

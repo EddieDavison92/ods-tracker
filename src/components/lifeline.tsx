@@ -87,8 +87,10 @@ export function Lifeline({ rels, today }: { rels: OrgRelInfo[]; today: string })
   const now = toYear(today)
   const first = Math.min(...lanes.flatMap((l) => l.segments.map((s) => toYear(s.start))))
   const start = Math.floor(first)
-  // Half a year of air after "now" so ongoing bars do not run into the edge.
-  const end = now + 0.5
+  // Half a year of air after "now" so ongoing bars do not run into the edge. End dates that ODS
+  // records ahead of time stretch the axis, up to 3 years ahead.
+  const lastEnd = Math.max(now, ...lanes.flatMap((l) => l.segments.map((s) => (s.end ? toYear(s.end) : now))))
+  const end = Math.max(now + 0.5, Math.min(lastEnd + 0.25, now + 3))
   const span = Math.max(1, end - start)
   const step = [1, 2, 5, 10].find((s) => (now - start) / s <= 7) ?? 20
   const ticks: number[] = []
@@ -115,7 +117,7 @@ export function Lifeline({ rels, today }: { rels: OrgRelInfo[]; today: string })
                   <div className="absolute inset-y-0 w-px bg-[#c3c2b7]" style={{ left: `${pos(now)}%` }} />
                   {segments.map((s) => {
                     const left = pos(toYear(s.start))
-                    const right = pos(s.end ? toYear(s.end) : now)
+                    const right = Math.min(100, pos(s.end ? toYear(s.end) : now))
                     const active = hover == null || hover === s.id
                     return (
                       <div
@@ -169,7 +171,7 @@ export function Lifeline({ rels, today }: { rels: OrgRelInfo[]; today: string })
             <ol className="space-y-2">
               {segments.map((s) => {
                 const left = pos(toYear(s.start))
-                const right = pos(s.end ? toYear(s.end) : now)
+                const right = Math.min(100, pos(s.end ? toYear(s.end) : now))
                 return (
                   <li key={s.id}>
                     <div className="flex items-baseline justify-between gap-3 text-sm">

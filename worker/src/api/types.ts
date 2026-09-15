@@ -235,6 +235,8 @@ export interface OrgDetail {
   childGroups: GroupCount[]
   // Linked orgs by relationship type and group (an org linked two ways counts under each type).
   childRels: { type: RoleRef; group: GroupKey; active: number; total: number }[]
+  // Totals behind `events` and `relatedEvents`, which are capped; page with /api/changes?org= or ?related=.
+  eventCounts: { own: number; involving: number }
   // Orgs within this area (for PCNs, Sub-ICBs, ICBs and regions), by group.
   area: GroupCount[] | null
   successions: OrgSuccInfo[]
