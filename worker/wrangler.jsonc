@@ -5,6 +5,9 @@
   "account_id": "e7ffabec5d1df79297886025881e4a03",
   "compatibility_date": "2026-09-01",
   "observability": { "enabled": true },
+  // Public API at api.ods-tracker.org; the workers.dev address stays on for existing links.
+  "routes": [{ "pattern": "api.ods-tracker.org", "custom_domain": true }],
+  "workers_dev": true,
   // ODS publishes changes daily at most; poll the ORD sync endpoint every 6 hours.
   "triggers": { "crons": ["17 */6 * * *"] },
   // Sync runs fetch hundreds of org records; allow up to 5 min CPU.
@@ -12,7 +15,7 @@
   "vars": {
     "ORD_BASE": "https://directory.spineservices.nhs.uk/ORD/2-0-0",
     // UI base URL, used for links in the RSS feed.
-    "APP_URL": "https://ods-tracker-omega.vercel.app"
+    "APP_URL": "https://ods-tracker.org"
   },
   // Response cache for heavy, slow-changing reads (as-at lists, exports, activity).
   "kv_namespaces": [{ "binding": "CACHE", "id": "43a50d59eab24f17823bae3e31f54dc5" }],

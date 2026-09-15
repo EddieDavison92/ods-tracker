@@ -4,7 +4,7 @@
 // Usage: node scripts/smoke-api.ts [baseUrl]   (default: deployed Worker)
 import { GROUPS } from '../src/ods/groups.ts'
 
-const BASE = (process.argv[2] ?? 'https://ods-tracker-api.eddiefox-davison.workers.dev').replace(/\/$/, '')
+const BASE = (process.argv[2] ?? 'https://api.ods-tracker.org').replace(/\/$/, '')
 const SLOW_MS = 3000
 
 type Body = Record<string, any>

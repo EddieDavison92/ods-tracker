@@ -5,7 +5,7 @@
 import { chromium } from 'playwright'
 
 const BASE = (process.argv[2] ?? 'http://localhost:3100').replace(/\/$/, '')
-const API = (process.env.API ?? 'https://ods-tracker-api.eddiefox-davison.workers.dev').replace(/\/$/, '')
+const API = (process.env.API ?? 'https://api.ods-tracker.org').replace(/\/$/, '')
 const CONCURRENCY = 4
 const ERROR_TEXT = /could not be loaded|Something went wrong|Application error|Unhandled Runtime Error|Internal Server Error/i
 const GROUPS = ['gp', 'pcn', 'branch', 'prescribing', 'pharmacy', 'dental', 'optical', 'trust', 'trust_site', 'independent',

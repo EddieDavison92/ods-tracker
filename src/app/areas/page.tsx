@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { PageHeading } from '@/components/field'
+import { EmptyState, PageHeading } from '@/components/field'
 import { GroupIcon } from '@/components/group-badge'
-import { fetchScopes } from '@/lib/api'
+import { fetchScopes, optional } from '@/lib/api'
 import { formatNumber } from '@/lib/format'
 import { displayName } from '@/lib/names'
-import { isLiveArea } from '@/lib/scopes'
+import { EMPTY_SCOPES, isLiveArea } from '@/lib/scopes'
 import type { ScopeOption } from '../../../worker/src/api/types'
 
 export const metadata: Metadata = { title: 'Areas' }
@@ -32,7 +32,9 @@ function Counts({ s }: { s: ScopeOption }) {
 }
 
 export default async function AreasPage() {
-  const scopes = await fetchScopes()
+  // Prerendered and revalidated each minute: if the API is down, show a message rather than fail the build.
+  const loaded = await optional(fetchScopes())
+  const scopes = loaded ?? EMPTY_SCOPES
   const regions = scopes.regions.filter(isLiveArea)
   const closed = scopes.icbs.filter((i) => !isLiveArea(i))
 
@@ -42,6 +44,7 @@ export default async function AreasPage() {
         title="Areas"
         description="NHS England regions, integrated care boards and Sub-ICB locations. Counts are active organisations of every type whose ODS relationships place them in the area."
       />
+      {loaded ? null : <EmptyState>Areas could not be loaded just now. Refresh in a minute to try again.</EmptyState>}
       <div className="space-y-10">
         {regions.map((r) => {
           const icbs = scopes.icbs.filter((i) => i.parent === r.code && isLiveArea(i))

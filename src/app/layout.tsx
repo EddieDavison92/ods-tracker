@@ -15,7 +15,8 @@ const geistMono = localFont({ src: './fonts/GeistMonoVF.woff', variable: '--font
 const emptyScopes: Scopes = { regions: [], icbs: [], sicbls: [] }
 
 export const metadata: Metadata = {
-  title: { default: 'ODS Tracker – every NHS organisation in England', template: '%s · ODS Tracker' },
+  metadataBase: new URL('https://ods-tracker.org'),
+  title:{ default: 'ODS Tracker – every NHS organisation in England', template: '%s · ODS Tracker' },
   description:
     'A free, independent tool to search every NHS Organisation Data Service record in England, browse how organisations relate and track changes since 2018. Not affiliated with NHS England.',
 }

@@ -67,7 +67,7 @@ The sync resumes from the last release's publication date. ORD only serves chang
 
 ## API
 
-Base URL: `https://ods-tracker-api.eddiefox-davison.workers.dev`. Response types: [`worker/src/api/types.ts`](worker/src/api/types.ts).
+Base URL: `https://api.ods-tracker.org` (also `https://ods-tracker-api.eddiefox-davison.workers.dev`). Site: `https://ods-tracker.org`. Response types: [`worker/src/api/types.ts`](worker/src/api/types.ts).
 
 | Endpoint | Notes |
 |---|---|
