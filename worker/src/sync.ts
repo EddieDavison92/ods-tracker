@@ -140,5 +140,22 @@ export async function runSync(env: Env, opts: SyncOptions): Promise<SyncResult> 
       result.failed, result.remaining, result.status, result.error ?? null, run!.id,
     )
     .run()
+  await notifySite(env)
   return result
+}
+
+// Tells the site to refresh its cached API data (it caches for 6 hours under one tag). Sent after
+// every run, so "last checked" stays current even when nothing changed. Failures only delay freshness.
+async function notifySite(env: Env): Promise<void> {
+  if (!env.REVALIDATE_TOKEN || !env.APP_URL) return
+  try {
+    const res = await fetch(`${env.APP_URL}/api/revalidate`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${env.REVALIDATE_TOKEN}` },
+      signal: AbortSignal.timeout(10_000),
+    })
+    if (!res.ok) console.warn('site revalidation failed', res.status)
+  } catch (err) {
+    console.warn('site revalidation failed', err instanceof Error ? err.message : String(err))
+  }
 }

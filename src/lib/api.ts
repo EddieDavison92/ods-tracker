@@ -32,13 +32,18 @@ export function apiUrl(path: string, query: QueryInput = {}): string {
 
 const retryable = (status: number) => status === 429 || status >= 500
 
-async function getJson<T>(path: string, query: QueryInput = {}, revalidate = 300): Promise<T> {
+// ODS data changes only when the Worker syncs (every 6 hours). API responses are cached for that
+// long under one tag, and the Worker calls /api/revalidate after each sync to refresh them.
+export const ODS_TAG = 'ods'
+const SYNC_INTERVAL_S = 21_600
+
+async function getJson<T>(path: string, query: QueryInput = {}, revalidate = SYNC_INTERVAL_S): Promise<T> {
   const url = apiUrl(path, query)
   let lastError: unknown
   for (let attempt = 0; attempt <= RETRIES; attempt++) {
     if (attempt > 0) await new Promise((r) => setTimeout(r, 250 * 2 ** attempt))
     try {
-      const res = await fetch(url, { next: { revalidate }, signal: AbortSignal.timeout(TIMEOUT_MS) })
+      const res = await fetch(url, { next: { revalidate, tags: [ODS_TAG] }, signal: AbortSignal.timeout(TIMEOUT_MS) })
       if (res.ok) return (await res.json()) as T
       let message = res.statusText || `HTTP ${res.status}`
       try {
@@ -67,13 +72,13 @@ export async function optional<T>(p: Promise<T>): Promise<T | null> {
   }
 }
 
-export const fetchMeta = () => getJson<Meta>('/api/meta', {}, 60)
-export const fetchScopes = () => getJson<Scopes>('/api/scopes', {}, 3600)
+export const fetchMeta = () => getJson<Meta>('/api/meta')
+export const fetchScopes = () => getJson<Scopes>('/api/scopes')
 export const fetchOrgs = (q: QueryInput) => getJson<ListResponse<OrgListRow>>('/api/orgs', q)
 export const fetchFacets = (q: QueryInput) => getJson<Facets>('/api/facets', q)
 export const fetchPractices = (q: QueryInput) => getJson<ListResponse<PracticeRow>>('/api/practices', q)
 export const fetchChanges = (q: QueryInput) => getJson<ChangesResponse>('/api/changes', q)
-export const fetchActivity = (q: QueryInput) => getJson<{ months: ActivityPoint[] }>('/api/changes/activity', q, 3600)
+export const fetchActivity = (q: QueryInput) => getJson<{ months: ActivityPoint[] }>('/api/changes/activity', q)
 export const fetchChildren = (code: string, q: QueryInput) =>
   getJson<ListResponse<ChildRow>>(`/api/orgs/${encodeURIComponent(code)}/children`, q)
 

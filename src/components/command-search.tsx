@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { Command } from 'cmdk'
 import { ArrowRight, Loader2, Search } from 'lucide-react'
 import { GroupIcon } from '@/components/group-badge'
-import { API_BASE } from '@/lib/api'
 import { groupDef } from '@/lib/groups'
+import { suggest } from '@/lib/suggest'
 import { displayName } from '@/lib/names'
 import { cn } from '@/lib/utils'
 import type { Suggestion } from '../../worker/src/api/types'
@@ -44,12 +44,11 @@ export function CommandSearch({ variant = 'header' }: { variant?: 'header' | 'he
     const t = setTimeout(async () => {
       setLoading(true)
       try {
-        const res = await fetch(`${API_BASE}/api/suggest?q=${encodeURIComponent(q)}`)
-        const body = (await res.json()) as { items: Suggestion[] }
+        const found = await suggest(q)
         if (id !== seq.current) return
-        setItems(body.items ?? [])
+        setItems(found)
         // Highlight the best match (an exact code comes first), not "see all results".
-        setSelected(body.items?.[0]?.code ?? `__all__${q}`)
+        setSelected(found[0]?.code ?? `__all__${q}`)
       } catch {
         if (id === seq.current) setItems([])
       } finally {

@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import * as Popover from '@radix-ui/react-popover'
 import { Check, ChevronDown, ChevronRight, MapPin, Search } from 'lucide-react'
-import { API_BASE } from '@/lib/api'
 import { displayName } from '@/lib/names'
+import { suggest } from '@/lib/suggest'
 import { cn } from '@/lib/utils'
 import { isLiveArea, scopeLabel } from '@/lib/scopes'
 import type { ScopeOption, Scopes, Suggestion } from '../../worker/src/api/types'
@@ -35,10 +35,9 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
   useEffect(() => {
     if (!current || known || pcnName[current]) return
     let cancelled = false
-    fetch(`${API_BASE}/api/suggest?q=${encodeURIComponent(current)}`)
-      .then((r) => r.json())
-      .then((b: { items: Suggestion[] }) => {
-        const hit = b.items?.find((i) => i.code === current)
+    suggest(current)
+      .then((items) => {
+        const hit = items.find((i) => i.code === current)
         if (!cancelled && hit) setPcnName((m) => ({ ...m, [current]: displayName(hit.name) }))
       })
       .catch(() => undefined)
@@ -52,9 +51,8 @@ export function AreaPicker({ scopes, tone = 'dark' }: { scopes: Scopes; tone?: '
   useEffect(() => {
     if (f.length < 3) return
     const t = setTimeout(() => {
-      fetch(`${API_BASE}/api/suggest?q=${encodeURIComponent(f)}&group=pcn`)
-        .then((r) => r.json())
-        .then((b: { items: Suggestion[] }) => setPcns((b.items ?? []).filter((i) => i.status === 'Active').slice(0, 6)))
+      suggest(f, 'pcn')
+        .then((items) => setPcns(items.filter((i) => i.status === 'Active').slice(0, 6)))
         .catch(() => setPcns([]))
     }, 200)
     return () => clearTimeout(t)
