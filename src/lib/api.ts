@@ -1,9 +1,9 @@
 import type {
   ActivityPoint, ChangesResponse, ChildRow, Facets, ListResponse, Meta, OrgDetail, OrgListRow, PracticeRow, Scopes,
 } from '../../worker/src/api/types'
+import { API_URL } from '@/lib/site'
 
-// Switch to https://api.ods-tracker.org once that name resolves publicly.
-const DEFAULT_API = 'https://ods-tracker-api.eddiefox-davison.workers.dev'
+const DEFAULT_API = API_URL
 export const API_BASE = (process.env.NEXT_PUBLIC_ODS_API_URL ?? DEFAULT_API).replace(/\/$/, '')
 
 export type QueryInput = Record<string, string | number | undefined | null>

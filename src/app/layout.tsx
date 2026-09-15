@@ -7,6 +7,7 @@ import { RouteFocus } from '@/components/route-focus'
 import { SiteHeader } from '@/components/site-header'
 import { fetchMeta, fetchScopes } from '@/lib/api'
 import { formatDate, formatRelative } from '@/lib/format'
+import { SITE_URL } from '@/lib/site'
 import type { Scopes } from '../../worker/src/api/types'
 
 const geistSans = localFont({ src: './fonts/GeistVF.woff', variable: '--font-geist-sans', weight: '100 900' })
@@ -15,7 +16,7 @@ const geistMono = localFont({ src: './fonts/GeistMonoVF.woff', variable: '--font
 const emptyScopes: Scopes = { regions: [], icbs: [], sicbls: [] }
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://ods-tracker.org'),
+  metadataBase: new URL(SITE_URL),
   title:{ default: 'ODS Tracker – every NHS organisation in England', template: '%s · ODS Tracker' },
   description:
     'A free, independent tool to search every NHS Organisation Data Service record in England, browse how organisations relate and track changes since 2018. Not affiliated with NHS England.',

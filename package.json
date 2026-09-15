@@ -2,6 +2,7 @@
   "name": "ods-tracker",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://ods-tracker.org",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
