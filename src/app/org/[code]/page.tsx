@@ -105,6 +105,9 @@ function Hierarchy({ detail }: { detail: OrgDetail }) {
   )
 }
 
+// ODS records operational and legal dates separately; either may be missing.
+const dateRange = (start: string | null, end: string | null) => (start || end ? formatRange(start, end) : '—')
+
 function RelTable({ rows }: { rows: OrgRelInfo[] }) {
   return (
     <div className="overflow-x-auto">
@@ -113,8 +116,9 @@ function RelTable({ rows }: { rows: OrgRelInfo[] }) {
           <tr className="border-b">
             <th className="py-2 pr-3 font-medium">Organisation</th>
             <th className="py-2 pr-3 font-medium">Relationship</th>
-            <th className="py-2 pr-3 font-medium">Dates</th>
-            <th className="py-2 font-medium">Status</th>
+            <th className="py-2 pr-3 font-medium">Operational</th>
+            <th className="hidden py-2 pr-3 font-medium md:table-cell">Legal</th>
+            <th className="py-2 font-medium">ODS status</th>
           </tr>
         </thead>
         <tbody>
@@ -125,10 +129,16 @@ function RelTable({ rows }: { rows: OrgRelInfo[] }) {
                   <GroupIcon group={r.orgGroup} size="xs" />
                   <OrgLink org={r.org} />
                 </span>
+                {r.orgStatus && r.orgStatus !== 'Active' ? <span className="ml-6 text-xs text-muted-foreground">Organisation closed</span> : null}
               </td>
-              <td className="whitespace-nowrap py-2 pr-3 text-muted-foreground">{relLabel(r)}</td>
-              <td className="whitespace-nowrap py-2 pr-3 tabular">{formatRange(r.opStart ?? r.legalStart, r.opEnd)}</td>
-              <td className="py-2"><StatusBadge status={r.opEnd ? 'Inactive' : 'Active'} labels={['Current', 'Ended']} /></td>
+              <td className="py-2 pr-3 text-muted-foreground">
+                {relLabel(r)} <span className="font-mono text-xs">{r.type.code}</span>
+              </td>
+              <td className="whitespace-nowrap py-2 pr-3 tabular">{dateRange(r.opStart, r.opEnd)}</td>
+              <td className="hidden whitespace-nowrap py-2 pr-3 tabular md:table-cell">{dateRange(r.legalStart, r.legalEnd)}</td>
+              <td className="py-2">
+                <StatusBadge status={r.status ?? (r.opEnd ? 'Inactive' : 'Active')} labels={['Current', 'Ended']} />
+              </td>
             </tr>
           ))}
         </tbody>
@@ -152,34 +162,65 @@ function membersLabel(detail: OrgDetail): { tab: string; title: string; note: st
   }
 }
 
+const chip = (on: boolean) =>
+  cn('inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-sm', on ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-accent')
+
 async function Members({ detail, sp }: { detail: OrgDetail; sp: Query }) {
   const group = groupParam(sp.group)
   const status = oneOf(sp.status, ['current', 'past', 'all'] as const, 'current')
+  const relRaw = firstParam(sp.rel)?.toUpperCase()
+  const rel = relRaw && detail.childRels.some((r) => r.type.code === relRaw) ? relRaw : undefined
   const offset = offsetParam(sp.offset)
-  const list = await optional(fetchChildren(detail.org.code, { group, status, limit: 50, offset }))
+  const list = await optional(fetchChildren(detail.org.code, { group, rel, status, limit: 50, offset }))
   if (!list) return <EmptyState>Members could not be loaded just now. Refresh to try again.</EmptyState>
   const base = `/org/${detail.org.code}`
   const href = (u: Record<string, string | null>) => pageHref(base, sp, { tab: 'members', offset: null, ...u })
   const { note } = membersLabel(detail)
+
+  // Chip counts follow the status toggle and the other filter.
+  const byStatus = (c: { active: number; total: number }) => (status === 'current' ? c.active : status === 'past' ? c.total - c.active : c.total)
+  const relRows = (type?: string, g?: string) => detail.childRels.filter((r) => (!type || r.type.code === type) && (!g || r.group === g))
+  const sum = (rows: { active: number; total: number }[]) => rows.reduce((a, r) => a + byStatus(r), 0)
+  const groupCount = (g?: string) => (rel ? sum(relRows(rel, g)) : sum(detail.childGroups.filter((c) => !g || c.group === g)))
+  const relTypes = [...new Map(detail.childRels.map((r) => [r.type.code, r.type])).values()]
+    .map((t) => ({ ...t, count: sum(relRows(t.code, group)) }))
+    .filter((t) => t.count > 0 || t.code === rel)
+    .sort((a, b) => b.count - a.count)
+
   return (
     <div className="space-y-4">
       <p className="flex items-start gap-2 text-sm text-muted-foreground">
         <Info aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
         {note}
       </p>
+      {relTypes.length > 1 ? (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Relationship type">
+            <Link href={href({ rel: null })} className={chip(!rel)}>Any relationship</Link>
+            {relTypes.map((t) => (
+              <Link key={t.code} href={href({ rel: t.code })} className={chip(rel === t.code)} title={`ODS relationship ${t.code}: ${t.name ?? ''}`}>
+                {inverseRelLabel(t.code)} <span className="tabular opacity-80">{formatNumber(t.count)}</span>
+              </Link>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            ODS lists relationships, so an organisation linked in two ways (for example in the area and a partner) counts under each type.
+            &ldquo;Any relationship&rdquo; counts each organisation once.
+          </p>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
-        <Link href={href({ group: null })} className={cn('inline-flex min-h-8 items-center rounded-full border px-3 py-1 text-sm', !group ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-accent')}>
-          All <span className="ml-1.5 tabular opacity-80">{formatNumber(detail.childrenTotal)}</span>
+        <Link href={href({ group: null })} className={chip(!group)}>
+          All <span className="tabular opacity-80">{formatNumber(groupCount())}</span>
         </Link>
-        {detail.childGroups.map((g) => (
-          <Link
-            key={g.group}
-            href={href({ group: g.group })}
-            className={cn('inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-sm', group === g.group ? 'border-primary bg-primary text-primary-foreground' : 'bg-card hover:bg-accent')}
-          >
-            {groupDef(g.group).label} <span className="tabular opacity-80">{formatNumber(g.total)}</span>
-          </Link>
-        ))}
+        {detail.childGroups
+          .map((g) => ({ group: g.group, count: groupCount(g.group) }))
+          .filter((g) => g.count > 0 || g.group === group)
+          .map((g) => (
+            <Link key={g.group} href={href({ group: g.group })} className={chip(group === g.group)}>
+              {groupDef(g.group).label} <span className="tabular opacity-80">{formatNumber(g.count)}</span>
+            </Link>
+          ))}
         <div className="sm:ml-auto">
           <Segmented
             label="Membership"
@@ -191,7 +232,7 @@ async function Members({ detail, sp }: { detail: OrgDetail; sp: Query }) {
       </div>
       {list.items.length === 0 ? (
         <EmptyState>
-          No {status === 'all' ? '' : `${status} `}linked organisations{group ? ' of this type' : ''}.
+          No {status === 'all' ? '' : `${status} `}linked organisations{group || rel ? ' matching these filters' : ''}.
           {status === 'current' ? ' Try Past or All.' : ''}
         </EmptyState>
       ) : (
@@ -506,7 +547,8 @@ export default async function OrgPage({ params, searchParams }: { params: Params
                   <thead className="text-left text-xs text-muted-foreground">
                     <tr className="border-b">
                       <th className="py-2 pr-3 font-medium">Role</th>
-                      <th className="py-2 pr-3 font-medium">Dates</th>
+                      <th className="py-2 pr-3 font-medium">Operational</th>
+                      <th className="hidden py-2 pr-3 font-medium md:table-cell">Legal</th>
                       <th className="py-2 font-medium">Status</th>
                     </tr>
                   </thead>
@@ -517,7 +559,8 @@ export default async function OrgPage({ params, searchParams }: { params: Params
                           {displayName(r.role.name) || r.role.code} <span className="font-mono text-xs text-muted-foreground">{r.role.code}</span>
                           {r.primary ? <span className="ml-2 rounded bg-accent px-1.5 py-0.5 text-[11px] font-medium text-accent-foreground">Primary</span> : null}
                         </td>
-                        <td className="whitespace-nowrap py-2 pr-3 tabular">{formatRange(r.opStart, r.opEnd)}</td>
+                        <td className="whitespace-nowrap py-2 pr-3 tabular">{dateRange(r.opStart, r.opEnd)}</td>
+                        <td className="hidden whitespace-nowrap py-2 pr-3 tabular md:table-cell">{dateRange(r.legalStart, r.legalEnd)}</td>
                         <td className="py-2"><StatusBadge status={r.status} labels={['Active', 'Ended']} /></td>
                       </tr>
                     ))}
@@ -532,7 +575,8 @@ export default async function OrgPage({ params, searchParams }: { params: Params
                 <Fact label="ODS status">{org.status}</Fact>
                 <Fact label="Record class">{org.recordClass === 'RC2' ? 'Site (RC2)' : 'Organisation (RC1)'}</Fact>
                 {org.legalStart ? <Fact label="Legal dates">{formatRange(org.legalStart, org.legalEnd)}</Fact> : null}
-                {org.uprn ? <Fact label="UPRN"><span className="font-mono">{org.uprn}</span></Fact> : null}
+                {org.country ? <Fact label="Country">{displayName(org.country)}</Fact> : null}
+                {org.uprn ? <Fact label="UPRN (property reference)"><span className="font-mono">{org.uprn}</span></Fact> : null}
                 <Fact label="Source records">
                   <span className="flex flex-col gap-1">
                     <a className={cn('inline-flex items-center gap-1', inlineLink)} href={`https://directory.spineservices.nhs.uk/ORD/2-0-0/organisations/${org.code}?_format=json`} target="_blank" rel="noreferrer">

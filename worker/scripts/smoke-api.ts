@@ -63,6 +63,10 @@ const checks: Check[] = [
   { path: '/api/orgs/RRV/children?group=trust_site', status: 200, test: (b) => (b.total > 0 ? null : 'no sites') },
   { path: '/api/orgs/RRV/children?status=past', status: 200 },
   { path: '/api/orgs/RRV/children?status=bad', status: 400 },
+  // ODS lists 15 trusts as partners (RE8) of this ICB and 18 in its geography (RE5); 20 distinct.
+  { path: '/api/orgs/Z9B2Z/children?rel=RE8&group=trust', status: 200, test: (b) => (b.total >= 10 ? null : `only ${b.total} partner trusts`) },
+  { path: '/api/orgs/Z9B2Z/children?rel=bad', status: 400 },
+  { path: '/api/orgs/Z9B2Z', status: 200, test: (b) => (b.childRels?.some((r: Body) => r.type.code === 'RE8') ? null : 'no RE8 breakdown') },
   { path: '/api/practices?asAt=2019-06-01&scope=Z9B2Z', status: 200, test: (b) => (b.total > 400 ? null : `only ${b.total}`) },
   { path: '/api/practices?asAt=2019-13-45', status: 400 },
   { path: '/api/pcns?scope=93C', status: 200, test: (b) => (b.total > 0 ? null : 'no PCNs') },
